@@ -6,15 +6,12 @@ Live preview, full-screen presenter mode, and slide reorder all included.
 
 ## Demo
 
-<!--
-  GitHub does not autoplay <video> tags that point to repo-relative paths.
-  To make this autoplay inline on the README, drag the video into a new
-  GitHub issue (don't submit the issue — just upload), copy the
-  https://github.com/user-attachments/... URL it gives you, and paste it
-  on its own line below in place of this fallback link.
--->
+<video src="https://raw.githubusercontent.com/izhan0102/Deckflow/main/media/preview.mp4" autoplay loop muted playsinline controls width="800">
+  Your browser doesn't render this video inline.
+  <a href="./media/preview.mp4">Watch the demo here</a>.
+</video>
 
-[![Watch the DeckFlow demo](https://img.shields.io/badge/▶_Watch_demo-1.5_min-7C5CFF?style=for-the-badge)](./media/preview.mp4)
+> If the video doesn't appear above when viewing on GitHub, watch it directly: [media/preview.mp4](./media/preview.mp4)
 
 ## Features
 
