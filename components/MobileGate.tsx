@@ -1,103 +1,178 @@
 "use client";
+import { useEffect, useState } from "react";
+import { Monitor, X } from "lucide-react";
 
 /**
- * Full-screen "use a desktop" overlay.
+ * Soft mobile notice. Centered modal popup on narrow viewports that
+ * dismisses with a close button. Once dismissed the rest of the site is
+ * fully usable; we don't gate access.
  *
- * Temporarily disabled so we can preview the app on phones during testing.
- * To re-enable: remove the `return null` and uncomment the original
- * implementation below.
+ * Behavior:
+ *   - Shown on narrow / coarse-pointer viewports.
+ *   - One-tap dismiss; remembered for 7 days via localStorage.
+ *   - Has a faint dim overlay but the modal isn't a blocker — closing it
+ *     reveals the underlying page exactly as before.
  */
-export default function MobileGate() {
-  return null;
-}
 
-/* --- original implementation, re-enable when mobile UX is locked down ---
-
-import { useEffect, useState } from "react";
-import { Monitor, Sparkles } from "lucide-react";
+const STORAGE_KEY = "deckflow_mobile_notice_v2";
 
 export default function MobileGate() {
-  const [isMobile, setIsMobile] = useState(false);
+  const [show, setShow] = useState(false);
 
   useEffect(() => {
-    const check = () => {
+    if (typeof window === "undefined") return;
+
+    const isMobileView = () => {
       const narrow = window.innerWidth < 900;
       const coarse = window.matchMedia("(pointer: coarse)").matches;
-      setIsMobile(narrow || (window.innerWidth < 1100 && coarse));
+      return narrow || (window.innerWidth < 1100 && coarse);
     };
-    check();
-    window.addEventListener("resize", check);
-    window.addEventListener("orientationchange", check);
+
+    const isDismissed = () => {
+      try {
+        const until = Number(window.localStorage.getItem(STORAGE_KEY) || 0);
+        return until > Date.now();
+      } catch {
+        return false;
+      }
+    };
+
+    const refresh = () => setShow(isMobileView() && !isDismissed());
+
+    refresh();
+    window.addEventListener("resize", refresh);
+    window.addEventListener("orientationchange", refresh);
     return () => {
-      window.removeEventListener("resize", check);
-      window.removeEventListener("orientationchange", check);
+      window.removeEventListener("resize", refresh);
+      window.removeEventListener("orientationchange", refresh);
     };
   }, []);
 
-  if (!isMobile) return null;
+  const dismiss = () => {
+    try {
+      // Hide for 7 days so it doesn't follow the user around forever.
+      const until = Date.now() + 7 * 24 * 60 * 60 * 1000;
+      window.localStorage.setItem(STORAGE_KEY, String(until));
+    } catch { /* ignore */ }
+    setShow(false);
+  };
+
+  if (!show) return null;
 
   return (
     <div
       role="dialog"
       aria-modal="true"
+      aria-label="Mobile experience notice"
       style={{
-        position: "fixed", inset: 0, zIndex: 9999,
-        background: "linear-gradient(to bottom, #0a0a0a, #050505)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "24px",
-        color: "#fff",
+        position: "fixed",
+        inset: 0,
+        zIndex: 9000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+        background: "rgba(5, 5, 7, 0.6)",
+        backdropFilter: "blur(4px)",
+        animation: "deckflow-mobile-popup-bg 180ms ease",
         fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
       }}
+      onClick={(e) => { if (e.target === e.currentTarget) dismiss(); }}
     >
-      <div style={{ maxWidth: 360, width: "100%", textAlign: "center" }}>
-        <div style={{
-          margin: "0 auto 18px",
-          width: 56, height: 56,
-          display: "grid", placeItems: "center",
-          borderRadius: 16,
-          background: "linear-gradient(135deg, rgba(124,92,255,0.25), rgba(34,197,94,0.15))",
-          border: "1px solid rgba(255,255,255,0.1)",
-        }}>
-          <Monitor size={26} color="#c4b5fd" />
+      <div
+        style={{
+          position: "relative",
+          maxWidth: 360,
+          width: "100%",
+          padding: "22px 22px 20px",
+          borderRadius: 18,
+          background: "linear-gradient(to bottom, #0f0f12, #0a0a0c)",
+          border: "1px solid rgba(255, 255, 255, 0.12)",
+          boxShadow: "0 30px 80px -20px rgba(0, 0, 0, 0.7)",
+          color: "#fff",
+          textAlign: "center",
+          animation: "deckflow-mobile-popup-in 220ms cubic-bezier(.2,.7,.2,1)",
+        }}
+      >
+        <button
+          onClick={dismiss}
+          aria-label="Close"
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            width: 28,
+            height: 28,
+            display: "grid",
+            placeItems: "center",
+            borderRadius: 8,
+            background: "rgba(255, 255, 255, 0.05)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            color: "rgba(255, 255, 255, 0.7)",
+            cursor: "pointer",
+          }}
+        >
+          <X size={14} />
+        </button>
+
+        <div
+          style={{
+            margin: "0 auto 14px",
+            width: 44,
+            height: 44,
+            display: "grid",
+            placeItems: "center",
+            borderRadius: 12,
+            background: "linear-gradient(135deg, rgba(124,92,255,0.28), rgba(34,197,94,0.16))",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+          }}
+        >
+          <Monitor size={20} color="#c4b5fd" />
         </div>
-        <div style={{
-          marginBottom: 12,
-          display: "inline-flex", alignItems: "center", gap: 6,
-          padding: "4px 10px",
-          borderRadius: 999,
-          border: "1px solid rgba(255,255,255,0.1)",
-          background: "rgba(255,255,255,0.04)",
-          fontSize: 11, color: "rgba(255,255,255,0.7)",
-        }}>
-          <Sparkles size={11} color="#c4b5fd" />
-          DeckFlow
-        </div>
-        <h1 style={{
-          fontSize: 22, fontWeight: 600,
-          letterSpacing: "-0.01em", lineHeight: 1.25,
-          margin: "0 0 10px",
-        }}>
-          DeckFlow works best on desktop
-        </h1>
-        <p style={{
-          color: "rgba(255,255,255,0.6)",
-          fontSize: 14, lineHeight: 1.55,
-          margin: "0 0 16px",
-        }}>
-          The editor lets you drag text boxes, resize images, and present
-          full-screen, things that need a real keyboard and pointer. A mobile
-          experience is on the way.
+
+        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, lineHeight: 1.3 }}>
+          DeckFlow is made for desktop
+        </h2>
+        <p
+          style={{
+            margin: "8px 0 16px",
+            fontSize: 13,
+            lineHeight: 1.5,
+            color: "rgba(255, 255, 255, 0.65)",
+          }}
+        >
+          The editor may not work properly on phones. Consider switching to a
+          laptop or desktop browser for the best experience.
         </p>
-        <p style={{
-          color: "rgba(255,255,255,0.45)",
-          fontSize: 12, lineHeight: 1.5,
-          margin: 0,
-        }}>
-          Open this page on a laptop or desktop browser to continue.
-        </p>
+
+        <button
+          onClick={dismiss}
+          style={{
+            display: "inline-block",
+            padding: "9px 16px",
+            borderRadius: 12,
+            background: "#fff",
+            color: "#000",
+            fontSize: 13,
+            fontWeight: 600,
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          Got it, continue anyway
+        </button>
       </div>
+
+      <style jsx global>{`
+        @keyframes deckflow-mobile-popup-bg {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes deckflow-mobile-popup-in {
+          from { opacity: 0; transform: translateY(10px) scale(0.98); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      `}</style>
     </div>
   );
 }
-
---- end of disabled implementation --- */
