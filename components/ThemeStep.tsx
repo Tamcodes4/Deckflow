@@ -1,7 +1,8 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PRESET_THEMES, type Theme } from "@/lib/themes";
 import { ChevronLeft, ChevronRight, Palette } from "lucide-react";
+import Skeleton from "./Skeleton";
 
 const PAGE_SIZE = 8;
 
@@ -25,6 +26,15 @@ export default function ThemeStep({ theme, setTheme, onBack, onGenerate, loading
   });
   const [tab, setTab] = useState<"preset" | "custom">("preset");
   const [page, setPage] = useState(0);
+  const [pageLoading, setPageLoading] = useState(false);
+
+  // Briefly show skeletons when the page changes so paging feels intentional
+  // rather than flashy.
+  useEffect(() => {
+    setPageLoading(true);
+    const t = window.setTimeout(() => setPageLoading(false), 200);
+    return () => window.clearTimeout(t);
+  }, [page]);
 
   const totalPages = Math.max(1, Math.ceil(PRESET_THEMES.length / PAGE_SIZE));
   const visible = useMemo(
@@ -71,7 +81,11 @@ export default function ThemeStep({ theme, setTheme, onBack, onGenerate, loading
       {tab === "preset" && (
         <>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-            {visible.map((t) => {
+            {pageLoading
+              ? Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                  <Skeleton key={i} height={160} />
+                ))
+              : visible.map((t) => {
               const active = theme.id === t.id;
               return (
                 <button

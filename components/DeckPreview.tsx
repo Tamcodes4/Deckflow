@@ -2,8 +2,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Deck, Slide, UploadedImage } from "@/lib/types";
 import type { Theme } from "@/lib/themes";
+import { PRESET_THEMES } from "@/lib/themes";
 import {
-  ChevronLeft, ChevronRight, Image as ImageIcon, Play, RotateCcw, Shapes,
+  Check, ChevronLeft, ChevronRight, Image as ImageIcon, Link as LinkIcon, Play, RotateCcw, Shapes,
 } from "lucide-react";
 import SlideCanvas from "./SlideCanvas";
 import DesignerPanel from "./DesignerPanel";
@@ -17,23 +18,57 @@ import { exportSlidesToPdf } from "@/lib/pdfExport";
 import { trackEvent } from "@/lib/stats";
 import type { ExportFormat } from "./ExportFormatPicker";
 import { getDecoration } from "@/lib/decorations";
+import { saveDeck, publishDeck, unpublishDeck } from "@/lib/decks";
+import type { AppUser } from "@/lib/auth";
 
 type Props = {
   deck: Deck;
   setDeck: (d: Deck) => void;
   theme: Theme;
+  setTheme?: (t: Theme) => void;
   onRestart: () => void;
+  deckId?: string | null;
+  user?: AppUser | null;
 };
 
-export default function DeckPreview({ deck, setDeck, theme, onRestart }: Props) {
+export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart, deckId, user }: Props) {
   const [active, setActive] = useState(0);
   const [downloading, setDownloading] = useState(false);
   const [presenting, setPresenting] = useState(false);
   const [decorOpen, setDecorOpen] = useState(false);
   const [renderForPdf, setRenderForPdf] = useState(false);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [themeTransferOpen, setThemeTransferOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hiddenRef = useRef<HiddenSlidesHandle>(null);
+
+  // Debounced cloud-save: any change to deck or theme triggers a save
+  // 1s after the last edit, so we don't slam Firebase on every keystroke.
+  const saveTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!user || !deckId) return;
+    setSaveState("saving");
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(async () => {
+      try {
+        await saveDeck(user.uid, deckId, deck, theme);
+        setSaveState("saved");
+        // Drop the "Saved" pill after a couple of seconds.
+        window.setTimeout(() => setSaveState((s) => (s === "saved" ? "idle" : s)), 1800);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn("[deck] save failed:", e);
+        setSaveState("error");
+      }
+    }, 1000);
+    return () => {
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    };
+  }, [deck, theme, user, deckId]);
 
   // Clear graphic selection when switching slides.
   useEffect(() => { setSelectedImageId(null); }, [active]);
@@ -180,6 +215,29 @@ export default function DeckPreview({ deck, setDeck, theme, onRestart }: Props) 
   const goPrev = () => setActive((a) => Math.max(0, a - 1));
   const goNext = () => setActive((a) => Math.min(deck.slides.length - 1, a + 1));
 
+  const onShare = async () => {
+    if (!user || !deckId) return;
+    setSharing(true);
+    try {
+      const shareId = await publishDeck(user.uid, deckId);
+      const url = `${window.location.origin}/share/${shareId}`;
+      setShareUrl(url);
+      setShareOpen(true);
+      try { await navigator.clipboard.writeText(url); } catch { /* clipboard might be blocked */ }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn("[deck] share failed:", e);
+      alert("Could not publish a share link. Try again.");
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const applyTheme = (next: Theme) => {
+    if (setTheme) setTheme(next);
+    setThemeTransferOpen(false);
+  };
+
   return (
     <div className="fade-in mx-auto w-full max-w-[1400px]">
       {presenting && (
@@ -197,9 +255,12 @@ export default function DeckPreview({ deck, setDeck, theme, onRestart }: Props) 
       />
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{deck.title}</h1>
-          {deck.subtitle && <p className="text-sm text-white/60">{deck.subtitle}</p>}
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">{deck.title}</h1>
+            {deck.subtitle && <p className="text-sm text-white/60">{deck.subtitle}</p>}
+          </div>
+          <SaveBadge state={saveState} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <input
@@ -224,6 +285,26 @@ export default function DeckPreview({ deck, setDeck, theme, onRestart }: Props) 
           >
             <Shapes size={14} /> Add graphic
           </button>
+          {setTheme && (
+            <button
+              onClick={() => setThemeTransferOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+              title="Apply a different theme to the whole deck"
+            >
+              <span className="inline-block h-3 w-3 rounded-full" style={{ background: theme.accent }} />
+              Theme
+            </button>
+          )}
+          {user && deckId && (
+            <button
+              onClick={onShare}
+              disabled={sharing}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
+              title="Get a public link to share this deck"
+            >
+              <LinkIcon size={14} /> {sharing ? "Sharing…" : "Share"}
+            </button>
+          )}
           <button
             onClick={() => setPresenting(true)}
             className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 hover:bg-emerald-400/20"
@@ -311,6 +392,139 @@ export default function DeckPreview({ deck, setDeck, theme, onRestart }: Props) 
             selectedImageId={selectedImageId}
             onDeselectImage={() => setSelectedImageId(null)}
           />
+        </div>
+      </div>
+
+      {/* Share modal */}
+      {shareOpen && shareUrl && (
+        <ShareModal
+          url={shareUrl}
+          onClose={() => setShareOpen(false)}
+          onUnpublish={async () => {
+            if (!user || !deckId) return;
+            try { await unpublishDeck(user.uid, deckId); } catch { /* ignore */ }
+            setShareOpen(false);
+            setShareUrl(null);
+          }}
+        />
+      )}
+
+      {/* Theme transfer modal */}
+      {themeTransferOpen && setTheme && (
+        <ThemeTransferModal
+          current={theme}
+          onClose={() => setThemeTransferOpen(false)}
+          onPick={applyTheme}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------- subcomponents ---------------------------- */
+
+function SaveBadge({ state }: { state: "idle" | "saving" | "saved" | "error" }) {
+  if (state === "idle") return null;
+  const styles =
+    state === "saving" ? "border-white/15 bg-white/5 text-white/65"
+    : state === "saved" ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+    : "border-red-500/40 bg-red-500/10 text-red-200";
+  const label =
+    state === "saving" ? "Saving…"
+    : state === "saved" ? "Saved" : "Save failed";
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${styles}`}>
+      {state === "saved" && <Check size={10} />}
+      {label}
+    </span>
+  );
+}
+
+function ShareModal({
+  url, onClose, onUnpublish,
+}: { url: string; onClose: () => void; onUnpublish: () => Promise<void> | void }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="m-4 w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-2xl">
+        <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-[11px] text-emerald-200">
+          <LinkIcon size={11} /> Public link
+        </div>
+        <h3 className="text-lg font-semibold text-white">Share this deck</h3>
+        <p className="mt-2 text-sm text-white/65">
+          Anyone with this link can view a read-only copy. The link reflects the
+          version at publish time and updates whenever you click Share again.
+        </p>
+        <div className="mt-4 flex items-center gap-2 rounded-xl border border-white/10 bg-black/40 px-3 py-2">
+          <span className="flex-1 truncate font-mono text-[12px] text-white/85">{url}</span>
+          <button
+            onClick={async () => {
+              try { await navigator.clipboard.writeText(url); setCopied(true); window.setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ }
+            }}
+            className="rounded-lg bg-white px-2.5 py-1 text-xs font-medium text-black hover:bg-white/90"
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
+        <div className="mt-5 flex items-center justify-between gap-3">
+          <button
+            onClick={() => onUnpublish()}
+            className="text-xs text-white/55 underline-offset-2 hover:text-white/85 hover:underline"
+          >
+            Stop sharing
+          </button>
+          <button
+            onClick={onClose}
+            className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ThemeTransferModal({
+  current, onClose, onPick,
+}: { current: Theme; onClose: () => void; onPick: (t: Theme) => void }) {
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="m-4 max-h-[80vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-3">
+          <div>
+            <div className="text-sm font-medium text-white">Apply a theme</div>
+            <div className="text-[11px] text-white/50">Re-skins every slide instantly. Per-slide color overrides stay.</div>
+          </div>
+          <button onClick={onClose} className="rounded-full p-1.5 text-white/60 hover:bg-white/10 hover:text-white">✕</button>
+        </div>
+        <div className="grid max-h-[65vh] grid-cols-2 gap-3 overflow-y-auto p-5 sm:grid-cols-3 md:grid-cols-4">
+          {PRESET_THEMES.map((t) => {
+            const active = t.id === current.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => onPick(t)}
+                className={`group overflow-hidden rounded-xl border text-left transition ${
+                  active ? "border-white/60 ring-2 ring-white/30" : "border-white/10 hover:border-white/35"
+                }`}
+              >
+                <div className="flex h-24 flex-col justify-between p-3" style={{ background: t.bg }}>
+                  <div className="text-[11px] font-bold" style={{ color: t.accent }}>Sample title</div>
+                  <div className="text-[9px]" style={{ color: t.muted }}>A short subtitle</div>
+                  <div className="text-[8px]" style={{ color: t.fg }}>• Bullet line</div>
+                </div>
+                <div className="flex items-center justify-between bg-black/30 px-2 py-1.5">
+                  <span className="text-[11px] text-white/85">{t.name}</span>
+                  <div className="flex gap-1">
+                    <span className="h-2.5 w-2.5 rounded-full border border-white/20" style={{ background: t.bg }} />
+                    <span className="h-2.5 w-2.5 rounded-full border border-white/20" style={{ background: t.accent }} />
+                    <span className="h-2.5 w-2.5 rounded-full border border-white/20" style={{ background: t.fg }} />
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

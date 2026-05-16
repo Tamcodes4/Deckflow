@@ -3,9 +3,30 @@ import type { Metadata } from "next";
 import MobileGate from "@/components/MobileGate";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://deckflow-pi.vercel.app"),
   title: "DeckFlow — Presentations from a prompt",
   description:
     "Type a topic, pick a theme, get a polished deck. DeckFlow writes, designs, and exports PowerPoint-ready presentations in seconds.",
+  applicationName: "DeckFlow",
+  keywords: [
+    "AI presentation maker", "PowerPoint AI", "deck builder", "AI slides",
+    "free presentation tool", "PPTX generator", "PDF export", "open source",
+  ],
+  openGraph: {
+    title: "DeckFlow — Presentations from a prompt",
+    description:
+      "Type a topic, pick a theme, get a polished deck. Real PPTX and PDF export.",
+    url: "https://deckflow-pi.vercel.app",
+    siteName: "DeckFlow",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DeckFlow — Presentations from a prompt",
+    description:
+      "Type a topic, pick a theme, get a polished deck. Real PPTX and PDF export.",
+  },
 };
 
 const GOOGLE_FONTS_URL =

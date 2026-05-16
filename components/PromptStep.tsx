@@ -95,6 +95,7 @@ export default function PromptStep(p: Props) {
       {p.onUseTemplate && (
         <button
           onClick={p.onUseTemplate}
+          data-tour="templates"
           className="mb-5 flex w-full items-center gap-4 rounded-2xl border border-white/10 bg-gradient-to-r from-white/5 to-white/[0.02] p-4 text-left transition hover:border-white/30 hover:from-white/10"
         >
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/15 bg-white/5">
@@ -121,7 +122,7 @@ export default function PromptStep(p: Props) {
 
       {/* Section: The brief */}
       <Section icon={<FileText size={12} />} title="The brief">
-        <div className="relative">
+        <div className="relative" data-tour="brief">
           <textarea
             ref={taRef}
             value={p.prompt}
@@ -243,6 +244,7 @@ export default function PromptStep(p: Props) {
             if (p.activeTemplateName) setConfirmOpen(true);
             else p.onNext();
           }}
+          data-tour="continue"
           className="rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {p.activeTemplateName ? "Customize theme →" : "Choose theme →"}

@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PromptStep from "@/components/PromptStep";
 import ThemeStep from "@/components/ThemeStep";
@@ -9,17 +9,37 @@ import GraphicStep from "@/components/GraphicStep";
 import DeckPreview from "@/components/DeckPreview";
 import GenerateOverlay from "@/components/GenerateOverlay";
 import TemplateGallery from "@/components/TemplateGallery";
+import OnboardingTour from "@/components/OnboardingTour";
 import { PRESET_THEMES, getTheme, type Theme } from "@/lib/themes";
 import type { Deck, ContentDensity } from "@/lib/types";
 import { applyTemplateToSlide, type TemplateVariantDefaults } from "@/lib/templates";
+import { createDeck, loadDeck } from "@/lib/decks";
 import { getCurrentUser, isLoggedIn, logout, onAuthStateChange, type AppUser } from "@/lib/auth";
 import { trackEvent } from "@/lib/stats";
 import { LogOut } from "lucide-react";
 
 type Step = "prompt" | "theme" | "font" | "graphic" | "deck";
 
+// useSearchParams() forces this route to render on each request rather than
+// being prerendered at build time. Without this, the build complains that
+// the hook isn't wrapped in a Suspense boundary.
+export const dynamic = "force-dynamic";
+
 export default function Page() {
+  return (
+    <Suspense fallback={
+      <main className="grid min-h-screen place-items-center bg-black text-white/60 text-sm">
+        Loading…
+      </main>
+    }>
+      <PageInner />
+    </Suspense>
+  );
+}
+
+function PageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<AppUser | null>(null);
 
@@ -53,6 +73,7 @@ export default function Page() {
   const [graphicAccent, setGraphicAccent] = useState<string | undefined>(undefined);
   const [fontId, setFontId] = useState<string>("inter");
   const [deck, setDeck] = useState<Deck | null>(null);
+  const [deckId, setDeckId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -61,21 +82,65 @@ export default function Page() {
   const [templateVariants, setTemplateVariants] = useState<TemplateVariantDefaults | null>(null);
   const [templateName, setTemplateName] = useState<string | null>(null);
 
+  // Load an existing deck via ?id=... so "Open" links from /app/decks work.
+  useEffect(() => {
+    if (!user) return;
+    const id = searchParams?.get("id");
+    if (!id || deckId === id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const stored = await loadDeck(user.uid, id);
+        if (cancelled || !stored) return;
+        setDeck(stored.deck);
+        setTheme(stored.theme);
+        setDeckId(id);
+        setGraphicId(stored.deck.graphic || "none");
+        setGraphicAccent(stored.deck.graphicAccent);
+        setFontId(stored.deck.fontId || "inter");
+        setStep("deck");
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn("[deck] load failed:", err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user, searchParams, deckId]);
+
   const generate = async () => {
     setLoading(true);
     setError(null);
     // Minimum animation time of 10s so the overlay always feels intentional.
     const minDelay = new Promise<void>((r) => window.setTimeout(r, 10000));
     try {
-      const fetchPromise = fetch("/api/generate", {
+      const doFetch = () => fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, slideCount, audience, tone, theme, density, includeReferences }),
-      }).then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "Generation failed");
+      }).then(async (res) => ({ res, data: await res.json() }));
+
+      const fetchPromise = (async () => {
+        let { res, data } = await doFetch();
+        // One silent retry on rate limit / parse hiccups, with a 1.5s backoff.
+        if (!res.ok && (data?.code === "rate_limit" || data?.code === "parse")) {
+          await new Promise((r) => setTimeout(r, 1500));
+          ({ res, data } = await doFetch());
+        }
+        if (!res.ok) {
+          const code = data?.code;
+          if (code === "rate_limit") {
+            throw new Error("High traffic right now — give it a few seconds and try again.");
+          }
+          if (code === "auth") {
+            throw new Error("There's an issue with the AI key. Try again in a moment.");
+          }
+          if (code === "parse") {
+            throw new Error("The AI got tripped up generating this. Try once more — usually works.");
+          }
+          throw new Error(data?.error || "Generation failed");
+        }
         return data;
-      });
+      })();
 
       const [data] = await Promise.all([fetchPromise, minDelay]);
       const slides = (templateVariants
@@ -84,7 +149,26 @@ export default function Page() {
       const deckWithExtras: Deck = { ...data.deck, slides, graphic: graphicId, graphicAccent, fontId };
       setDeck(deckWithExtras);
       setStep("deck");
+
+      // Persist a fresh row in Firebase so the deck survives a refresh.
+      // Failures (network blip, missing auth, etc.) shouldn't block the user
+      // from continuing to work on the deck — but we want to know loudly so
+      // we can react with a visible error.
       if (user) {
+        try {
+          const id = await createDeck(user.uid, deckWithExtras, theme);
+          setDeckId(id);
+          // Reflect the id in the URL so a refresh recovers the deck.
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.set("id", id);
+            window.history.replaceState({}, "", url.toString());
+          } catch { /* ignore */ }
+        } catch (saveErr: any) {
+          // eslint-disable-next-line no-console
+          console.error("[deck] create failed:", saveErr);
+          setError(`Couldn't save the deck to your account. ${saveErr?.message || ""}`.trim());
+        }
         trackEvent({
           kind: "deck_generated",
           topic: prompt.slice(0, 200),
@@ -105,6 +189,7 @@ export default function Page() {
   const restart = () => {
     setStep("prompt");
     setDeck(null);
+    setDeckId(null);
   };
 
   if (!authReady) {
@@ -134,6 +219,10 @@ export default function Page() {
             <Stepper step={step} />
             {user && (
               <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs">
+                <Link href="/app/decks" className="text-white/70 hover:text-white" data-tour="my-decks" title="My decks">
+                  My decks
+                </Link>
+                <span className="text-white/15">|</span>
                 <span className="text-white/70">{user.name || user.email}</span>
                 <button
                   onClick={async () => { await logout(); router.replace("/"); }}
@@ -210,7 +299,15 @@ export default function Page() {
       )}
 
       {step === "deck" && deck && (
-        <DeckPreview deck={deck} setDeck={setDeck} theme={theme} onRestart={restart} />
+        <DeckPreview
+          deck={deck}
+          setDeck={setDeck}
+          theme={theme}
+          setTheme={setTheme}
+          onRestart={restart}
+          deckId={deckId}
+          user={user}
+        />
       )}
 
       {/* Full-screen "deck is being prepared" overlay. Mounts as soon as
@@ -237,6 +334,9 @@ export default function Page() {
           setTemplateName(t.name);
         }}
       />
+
+      {/* First-visit walkthrough. Self-disables after one show. */}
+      <OnboardingTour enabled={step === "prompt"} />
     </main>
   );
 }

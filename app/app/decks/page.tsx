@@ -1,0 +1,179 @@
+"use client";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, FileText, Plus, Trash2 } from "lucide-react";
+import { onAuthStateChange, type AppUser } from "@/lib/auth";
+import { watchDeckList, deleteDeck, type DeckListItem } from "@/lib/decks";
+
+export default function MyDecksPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [decks, setDecks] = useState<DeckListItem[]>([]);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsub = onAuthStateChange((u) => {
+      if (!u) { router.replace("/auth?redirect=/app/decks"); return; }
+      setUser(u);
+      setAuthReady(true);
+    });
+    return () => unsub();
+  }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
+    const unsub = watchDeckList(user.uid, setDecks);
+    return () => unsub();
+  }, [user]);
+
+  if (!authReady) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-black text-white/60 text-sm">
+        Loading…
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black px-4 py-10 sm:px-8">
+      <header className="mx-auto mb-10 flex max-w-5xl items-center justify-between">
+        <Link href="/" className="flex items-center">
+          <span className="border-b-2 border-white pb-0.5 font-semibold tracking-tight">DeckFlow</span>
+        </Link>
+        <Link
+          href="/app"
+          className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90"
+        >
+          <Plus size={14} /> New deck
+        </Link>
+      </header>
+
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">My decks</h1>
+            <p className="mt-1 text-sm text-white/55">
+              Everything you've created stays here. Auto-saved as you edit.
+            </p>
+          </div>
+          <Link href="/app" className="inline-flex items-center gap-1 text-xs text-white/55 hover:text-white/80">
+            <ArrowLeft size={12} /> Back
+          </Link>
+        </div>
+
+        {decks.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {decks.map((d) => (
+              <article
+                key={d.id}
+                className="group flex flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-white/30 hover:bg-white/[0.05]"
+              >
+                <div className="mb-3 flex h-32 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-transparent">
+                  <FileText size={28} className="text-white/30" />
+                </div>
+                <h3 className="line-clamp-2 text-sm font-semibold text-white">{d.title}</h3>
+                {d.subtitle && (
+                  <p className="mt-1 line-clamp-2 text-xs text-white/55">{d.subtitle}</p>
+                )}
+                <div className="mt-3 flex items-center justify-between text-[11px] text-white/50">
+                  <span>{d.slides} slides</span>
+                  <span>{formatRelative(d.updatedAt)}</span>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <Link
+                    href={`/app?id=${d.id}`}
+                    className="flex-1 rounded-lg bg-white px-3 py-1.5 text-center text-xs font-medium text-black hover:bg-white/90"
+                  >
+                    Open
+                  </Link>
+                  {d.shareId && (
+                    <Link
+                      href={`/share/${d.shareId}`}
+                      target="_blank"
+                      className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/75 hover:bg-white/10"
+                      title="View public share link"
+                    >
+                      Link
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => setConfirmId(d.id)}
+                    className="rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1.5 text-xs text-red-200 hover:bg-red-500/20"
+                    title="Delete this deck"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {confirmId && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="m-4 w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-white">Delete this deck?</h3>
+            <p className="mt-2 text-sm text-white/65">
+              This can't be undone. Any public share link will also stop working.
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setConfirmId(null)}
+                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/85 hover:bg-white/10"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (user && confirmId) {
+                    try { await deleteDeck(user.uid, confirmId); } catch { /* ignore */ }
+                  }
+                  setConfirmId(null);
+                }}
+                className="rounded-xl bg-red-500/90 px-4 py-2 text-sm font-medium text-white hover:bg-red-500"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-12 text-center">
+      <FileText size={28} className="mx-auto mb-3 text-white/30" />
+      <h2 className="text-base font-semibold text-white">No decks yet</h2>
+      <p className="mt-1 text-sm text-white/55">
+        Create your first deck and it'll show up here automatically.
+      </p>
+      <Link
+        href="/app"
+        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90"
+      >
+        <Plus size={14} /> Create a deck
+      </Link>
+    </div>
+  );
+}
+
+function formatRelative(ts: number): string {
+  if (!ts) return "just now";
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min} min ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day}d ago`;
+  return new Date(ts).toLocaleDateString();
+}

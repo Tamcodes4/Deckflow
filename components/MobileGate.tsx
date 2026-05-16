@@ -1,13 +1,21 @@
 "use client";
+
+/**
+ * Full-screen "use a desktop" overlay.
+ *
+ * Temporarily disabled so we can preview the app on phones during testing.
+ * To re-enable: remove the `return null` and uncomment the original
+ * implementation below.
+ */
+export default function MobileGate() {
+  return null;
+}
+
+/* --- original implementation, re-enable when mobile UX is locked down ---
+
 import { useEffect, useState } from "react";
 import { Monitor, Sparkles } from "lucide-react";
 
-/**
- * Full-screen overlay shown when the viewport is too small for DeckFlow's
- * editor. Pure CSS handles the common case via a media query; JS is a
- * second layer that also checks pointer type so a touch-only laptop can
- * still be recognised correctly.
- */
 export default function MobileGate() {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -52,7 +60,6 @@ export default function MobileGate() {
         }}>
           <Monitor size={26} color="#c4b5fd" />
         </div>
-
         <div style={{
           marginBottom: 12,
           display: "inline-flex", alignItems: "center", gap: 6,
@@ -65,7 +72,6 @@ export default function MobileGate() {
           <Sparkles size={11} color="#c4b5fd" />
           DeckFlow
         </div>
-
         <h1 style={{
           fontSize: 22, fontWeight: 600,
           letterSpacing: "-0.01em", lineHeight: 1.25,
@@ -73,7 +79,6 @@ export default function MobileGate() {
         }}>
           DeckFlow works best on desktop
         </h1>
-
         <p style={{
           color: "rgba(255,255,255,0.6)",
           fontSize: 14, lineHeight: 1.55,
@@ -83,7 +88,6 @@ export default function MobileGate() {
           full-screen, things that need a real keyboard and pointer. A mobile
           experience is on the way.
         </p>
-
         <p style={{
           color: "rgba(255,255,255,0.45)",
           fontSize: 12, lineHeight: 1.5,
@@ -95,3 +99,5 @@ export default function MobileGate() {
     </div>
   );
 }
+
+--- end of disabled implementation --- */

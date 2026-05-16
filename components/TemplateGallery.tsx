@@ -5,6 +5,7 @@ import { DECK_TEMPLATES, type DeckTemplate } from "@/lib/templates";
 import { getTheme, type Theme } from "@/lib/themes";
 import { getGraphic } from "@/lib/graphics";
 import { resolveFontFamily } from "@/lib/fonts";
+import Skeleton from "./Skeleton";
 
 const PAGE_SIZE = 6;
 
@@ -26,6 +27,14 @@ export default function TemplateGallery({
   }, []);
   const [filter, setFilter] = useState<string>("All");
   const [page, setPage] = useState(0);
+  const [pageLoading, setPageLoading] = useState(false);
+
+  // Brief skeleton flash on page/filter change so paging feels deliberate.
+  useEffect(() => {
+    setPageLoading(true);
+    const t = window.setTimeout(() => setPageLoading(false), 200);
+    return () => window.clearTimeout(t);
+  }, [page, filter]);
 
   const visible = useMemo(() => {
     if (filter === "All") return DECK_TEMPLATES;
@@ -80,7 +89,11 @@ export default function TemplateGallery({
 
         {/* Grid */}
         <div className="grid grid-cols-1 gap-4 overflow-y-auto px-6 pt-6 pb-4 sm:grid-cols-2 lg:grid-cols-3">
-          {pageTemplates.map((t) => (
+          {pageLoading
+            ? Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                <Skeleton key={i} height={272} />
+              ))
+            : pageTemplates.map((t) => (
             <TemplateCard
               key={t.id}
               template={t}
