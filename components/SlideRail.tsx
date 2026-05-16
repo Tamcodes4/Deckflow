@@ -119,7 +119,9 @@ export default function SlideRail({ deck, theme, active, setActive, onChange }: 
             } ${dragIdx === i ? "opacity-50" : ""}`}
           >
             <div className="pointer-events-none">
-              <SlideCanvas slide={s} theme={theme} idx={i} total={slides.length} deckTitle={deck.title} />
+              <SlideCanvas slide={s} theme={theme} idx={i} total={slides.length} deckTitle={deck.title} graphicId={deck.graphic}
+              graphicAccent={deck.graphicAccent}
+              fontId={deck.fontId} />
             </div>
             <div className="flex items-center justify-between bg-black/40 px-2 py-1 text-[10px] text-white/60">
               <span className="truncate">

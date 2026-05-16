@@ -3,20 +3,61 @@ export type Theme = {
   name: string;
   bg: string;        // slide background
   fg: string;        // primary text
-  accent: string;    // accent / titles
+  accent: string;    // accent / titles / decoration
   muted: string;     // secondary text
   font: "sans" | "serif" | "mono";
 };
 
+/**
+ * Palette catalog. Every theme uses a light background since presenters
+ * project, print, and read on laptops in daylight. Accent colors are picked
+ * for legible contrast on each background.
+ *
+ * Order matters: paginated 8 per page on the theme picker, so the first
+ * page is the most universally useful set.
+ */
 export const PRESET_THEMES: Theme[] = [
-  { id: "midnight",  name: "Midnight",         bg: "#0B0B0F", fg: "#FAFAFA", accent: "#7C5CFF", muted: "#A1A1AA", font: "sans"  },
-  { id: "ivory",     name: "Ivory & Black",    bg: "#FAFAF7", fg: "#0A0A0A", accent: "#0A0A0A", muted: "#525252", font: "serif" },
-  { id: "crimson",   name: "Crimson & White",  bg: "#FFFFFF", fg: "#1A1A1A", accent: "#DC2626", muted: "#6B7280", font: "sans"  },
-  { id: "forest",    name: "Red & Forest",     bg: "#0F1F17", fg: "#F5F5F4", accent: "#EF4444", muted: "#A8B5AE", font: "sans"  },
-  { id: "ocean",     name: "Ocean Deep",       bg: "#06283D", fg: "#EAF6FF", accent: "#47B5FF", muted: "#9DB7CC", font: "sans"  },
-  { id: "sand",      name: "Sand & Ink",       bg: "#F4ECD8", fg: "#1B1B1B", accent: "#A0522D", muted: "#5C4A3A", font: "serif" },
-  { id: "neon",      name: "Neon Mono",        bg: "#000000", fg: "#FFFFFF", accent: "#00FF94", muted: "#888888", font: "mono"  },
-  { id: "rose",      name: "Rose Quartz",      bg: "#FFF1F2", fg: "#1F1F1F", accent: "#E11D48", muted: "#737373", font: "sans"  },
+  /* ---- Page 1: classic / corporate / safe picks ---- */
+  { id: "ivory",       name: "Ivory & Black",      bg: "#FAFAF7", fg: "#0A0A0A", accent: "#0A0A0A", muted: "#525252", font: "serif" },
+  { id: "blue-white",  name: "Blue & White",       bg: "#FFFFFF", fg: "#0F172A", accent: "#1D4ED8", muted: "#475569", font: "sans"  },
+  { id: "corp-navy",   name: "Corporate Navy",     bg: "#FFFFFF", fg: "#0F172A", accent: "#1E3A8A", muted: "#475569", font: "sans"  },
+  { id: "red-white",   name: "Red & White",        bg: "#FFFFFF", fg: "#1A1A1A", accent: "#DC2626", muted: "#52525B", font: "sans"  },
+  { id: "green-white", name: "Green & White",      bg: "#FFFFFF", fg: "#0F1F17", accent: "#047857", muted: "#475569", font: "sans"  },
+  { id: "teal-white",  name: "Teal & White",       bg: "#FFFFFF", fg: "#0F1F1F", accent: "#0E7490", muted: "#52525B", font: "sans"  },
+  { id: "purple-white",name: "Purple & White",     bg: "#FFFFFF", fg: "#1E1B2E", accent: "#7C3AED", muted: "#52525B", font: "sans"  },
+  { id: "charcoal",    name: "Charcoal & White",   bg: "#FFFFFF", fg: "#1F2937", accent: "#374151", muted: "#6B7280", font: "sans"  },
+
+  /* ---- Page 2: soft / modern / startup ---- */
+  { id: "soft-indigo", name: "Soft Indigo",        bg: "#EEF0FA", fg: "#1E1B4B", accent: "#4338CA", muted: "#6366F1", font: "sans"  },
+  { id: "quiet-blue",  name: "Quiet Blue",         bg: "#F1F5F9", fg: "#0F172A", accent: "#334155", muted: "#64748B", font: "sans"  },
+  { id: "mint-sage",   name: "Mint Sage",          bg: "#EEF4EF", fg: "#1F2937", accent: "#047857", muted: "#6B7280", font: "sans"  },
+  { id: "olive",       name: "Olive",              bg: "#F4F1E8", fg: "#1F2419", accent: "#65754E", muted: "#6E7257", font: "serif" },
+  { id: "lavender",    name: "Lavender",           bg: "#F5F3FF", fg: "#2E1065", accent: "#7C3AED", muted: "#6D28D9", font: "sans"  },
+  { id: "powder-rose", name: "Powder Rose",        bg: "#FDF2F4", fg: "#3F1224", accent: "#BE123C", muted: "#9F1239", font: "sans"  },
+  { id: "sky",         name: "Sky",                bg: "#F0F9FF", fg: "#0C4A6E", accent: "#0284C7", muted: "#0369A1", font: "sans"  },
+  { id: "fog",         name: "Fog",                bg: "#F8FAFC", fg: "#0F172A", accent: "#0369A1", muted: "#475569", font: "sans"  },
+
+  /* ---- Page 3: warm / editorial / creative ---- */
+  { id: "sand",        name: "Sand & Ink",         bg: "#F4ECD8", fg: "#1B1B1B", accent: "#A0522D", muted: "#5C4A3A", font: "serif" },
+  { id: "clay-cream",  name: "Clay & Cream",       bg: "#FAF3E7", fg: "#27201A", accent: "#B5572C", muted: "#7C6757", font: "sans"  },
+  { id: "burgundy",    name: "Burgundy & Cream",   bg: "#FAF7F2", fg: "#26161B", accent: "#7F1D1D", muted: "#6B5454", font: "serif" },
+  { id: "mustard",     name: "Mustard",            bg: "#FAF6E8", fg: "#1F1B0E", accent: "#B45309", muted: "#78716C", font: "serif" },
+  { id: "slate-coral", name: "Slate & Coral",      bg: "#F4F4F5", fg: "#18181B", accent: "#E55A4D", muted: "#52525B", font: "sans"  },
+  { id: "rose-gold",   name: "Rose Gold",          bg: "#FFF7F2", fg: "#1F1410", accent: "#C2410C", muted: "#9A3412", font: "serif" },
+  { id: "forest-cream",name: "Forest & Cream",     bg: "#F5F1E6", fg: "#16241C", accent: "#14532D", muted: "#3F4B43", font: "serif" },
+  { id: "ocean-deep",  name: "Ocean & Pearl",      bg: "#F0F4F7", fg: "#0B1F2A", accent: "#155E75", muted: "#475569", font: "sans"  },
+
+  /* ---- Page 4: bold / saturated solids (the "actually colorful" set) ---- */
+  // Saturated backgrounds with white text + a bright contrasting accent.
+  // These are for decks where the brand IS the color: keynote-style hero decks.
+  { id: "royal-indigo", name: "Royal Indigo",      bg: "#3F3DBD", fg: "#FFFFFF", accent: "#FBBF24", muted: "#C7D2FE", font: "sans"  },
+  { id: "cobalt",       name: "Cobalt Solid",      bg: "#1E40AF", fg: "#FFFFFF", accent: "#FB923C", muted: "#BFDBFE", font: "sans"  },
+  { id: "crimson",      name: "Crimson Solid",     bg: "#9F1239", fg: "#FFFFFF", accent: "#FCD34D", muted: "#FCA5A5", font: "sans"  },
+  { id: "emerald",      name: "Emerald Solid",     bg: "#047857", fg: "#FFFFFF", accent: "#FCD34D", muted: "#A7F3D0", font: "sans"  },
+  { id: "tangerine",    name: "Tangerine",         bg: "#C2410C", fg: "#FFFFFF", accent: "#FDE68A", muted: "#FDBA74", font: "sans"  },
+  { id: "plum",         name: "Plum",              bg: "#6D28D9", fg: "#FFFFFF", accent: "#F472B6", muted: "#DDD6FE", font: "sans"  },
+  { id: "slate-bold",   name: "Slate Bold",        bg: "#1F2937", fg: "#FFFFFF", accent: "#F59E0B", muted: "#9CA3AF", font: "sans"  },
+  { id: "coral-solid",  name: "Coral Solid",       bg: "#E55A4D", fg: "#FFFFFF", accent: "#1F2937", muted: "#FECACA", font: "sans"  },
 ];
 
 export function getTheme(id: string): Theme | undefined {

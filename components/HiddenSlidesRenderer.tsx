@@ -41,7 +41,7 @@ const HiddenSlidesRenderer = forwardRef<HiddenSlidesHandle, { deck: Deck; theme:
             <div
               key={i}
               data-slide-node
-              style={{ width: 1280, marginBottom: 16 }}
+              style={{ width: 1280, height: 720, marginBottom: 16, overflow: "hidden" }}
             >
               <SlideCanvas
                 slide={slide}
@@ -49,6 +49,9 @@ const HiddenSlidesRenderer = forwardRef<HiddenSlidesHandle, { deck: Deck; theme:
                 idx={i}
                 total={deck.slides.length}
                 deckTitle={deck.title}
+                graphicId={deck.graphic}
+              graphicAccent={deck.graphicAccent}
+              fontId={deck.fontId}
               />
             </div>
           );

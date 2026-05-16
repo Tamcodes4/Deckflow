@@ -205,6 +205,9 @@ export default function Presenter({
                     idx={i}
                     total={total}
                     deckTitle={deck.title}
+                    graphicId={deck.graphic}
+              graphicAccent={deck.graphicAccent}
+              fontId={deck.fontId}
                   />
                 </div>
               ))}

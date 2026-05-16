@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Deck, Slide, Annotation, Anchor, ElementId, TableData, Reference } from "@/lib/types";
+import type { Deck, Slide, Annotation, Anchor, ElementId, TableData, Reference, UploadedImage } from "@/lib/types";
 import { withGroqClient } from "@/lib/groqClient";
+import { getDecoration, DECORATIONS } from "@/lib/decorations";
+import { searchIconify } from "@/lib/iconify";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -11,6 +13,12 @@ const VALID_ANCHORS: Anchor[] = [
   "bottom-left","bottom-center","bottom-right",
 ];
 const VALID_ELEMENTS: ElementId[] = ["title", "subtitle", "bullets", "body", "table", "quote"];
+
+const SLIDE_W = 13.333;
+const SLIDE_H = 7.5;
+const PAD = 0.6;
+
+const DECORATION_NAMES = DECORATIONS.map((d) => `"${d.id}" (${d.name})`).join(", ");
 
 const SYSTEM_PROMPT = `You are SlideGen's slide editor.
 You edit ONE slide at a time, with full deck context for coherent edits.
@@ -26,33 +34,60 @@ Patch schema (all fields OPTIONAL):
   "body": string,
   "notes": string,
 
-  "table": {
-    "headers": string[],
-    "rows": [ string[] ],
-    "source": string
-  },
+  "table": { "headers": string[], "rows": [string[]], "source": string },
 
   "layout": "title-hero" | "bullets" | "table" | "two-column" | "quote" | "section" | "closing",
 
   // Slide-wide style
-  "titleScale": number,            // 0.5 - 1.8
+  "titleScale": number,
   "bodyScale":  number,
   "fontOverride": "sans" | "serif" | "mono",
   "textColorOverride": string,
   "accentColorOverride": string,
   "backgroundColorOverride": string,
 
-  // Element controls (for "delete the title", "hide bullets", "make table bigger")
+  // Element controls (text containers)
   "hideElements": ["title" | "subtitle" | "bullets" | "body" | "table" | "quote"],
   "showElements": ["title" | "subtitle" | "bullets" | "body" | "table" | "quote"],
-  "resetPositions": boolean,        // clears all per-element drag offsets
+  "resetPositions": boolean,
 
-  // Free-floating text boxes for "add X at bottom left", etc.
+  // Free-floating text labels (corner annotations)
   "addAnnotations": [
-    { "text": string, "anchor": "...", "fontSize": number, "color": string, "bold": boolean, "italic": boolean, "align": "left"|"center"|"right" }
+    { "text": string, "anchor": "...", "fontSize": number, "color": string,
+      "bold": boolean, "italic": boolean, "align": "left"|"center"|"right" }
   ],
   "removeAnnotations": number[],
   "clearAnnotations": boolean,
+
+  // ===== GRAPHICS & ICONS (the new powers) =====
+  "addElements": [
+    {
+      "kind": "decoration" | "icon",
+      "decorationId": string,    // for kind="decoration", one of the catalog ids
+      "iconQuery":   string,     // for kind="icon", a 1-2 word query like "rocket" or "calendar check"
+      "position":    "top-left" | "top-right" | "bottom-left" | "bottom-right" |
+                     "center"   | "left"      | "right"       | "top"          | "bottom",
+      "size":        "small" | "medium" | "large",
+      "color":       string      // hex like "#DC2626"; omit to use theme accent
+    }
+  ],
+  "removeElements": [string],    // image ids to remove. Use "*" to clear all elements on the slide.
+  "updateElements": [
+    {
+      "id":    string,           // image id from the slide context (preferred)
+      "match": {                 // OR a fuzzy match if the model can't see the id
+        "kind": "decoration" | "icon",
+        "decorationId": string,
+        "iconContains": string   // substring of the iconId
+      },
+      "patch": {
+        "position": "...",       // same vocabulary as addElements
+        "size":     "small"|"medium"|"large",
+        "color":    string,      // hex
+        "x": number, "y": number, "w": number, "h": number   // raw inches if needed
+      }
+    }
+  ],
 
   "explanation": string
 }
@@ -62,40 +97,35 @@ CRITICAL — content authoring rules:
 - For "table": put data in "table" with headers, rows, and a "source" line.
 - For "quote": put quote in "body", attribution in "subtitle".
 - For "section": put lead-in in "body".
-- For numeric/comparative content, switch layout to "table" if not already, then provide table data.
+- For numeric/comparative content, switch layout to "table" if not already.
 - If user says "actually write the X" / "fill in", use deck topic from context to write concrete content. No placeholders.
 
-Positioning (annotations):
-- "bottom left" -> anchor "bottom-left"
-- "small font" -> fontSize 10-11. "tiny" -> 9. "large" -> 22. "huge" -> 32.
+Graphics & icons:
+- Use addElements for "add a chart", "add an icon", "add a donut on the right", "add a rocket top-right in red".
+- Decorations are layout shapes, charts, infographics. Available decorationId values: ${DECORATION_NAMES}.
+- Icons are single-color symbols from a global library. Use kind="icon" with a short iconQuery like "rocket", "calendar", "trending up", "linkedin", "shield". The server will resolve it.
+- For "remove the icon" / "remove the chart" use removeElements with an id from context, or use "*" to clear all.
+- For "make the chart red" / "move the icon to the bottom right" use updateElements.
+- DEFAULT POSITION when unspecified: "right" for charts/infographics, "top-right" for icons.
+- DEFAULT SIZE when unspecified: "medium".
 
-Deletion:
-- "remove/hide/delete the title" -> hideElements: ["title"]
-- "delete bullets" -> hideElements: ["bullets"]
-- "bring back the title" -> showElements: ["title"]
-- "reset positions" / "put everything back" -> resetPositions: true
+Positioning (annotations - text labels at corners):
+- "bottom left" -> anchor "bottom-left"
+- Multiple lines at same corner: separate annotations, same anchor — they stack.
 
 Color rules:
-- "match other slides background" / "page color is wrong" / "color of bg like other slides" -> backgroundColorOverride MUST equal deck.themeBg (a real hex value provided in context).
-- "text white" -> textColorOverride: "#FFFFFF"
-- "accent red" -> accentColorOverride: "#DC2626"
+- "match other slides background" -> backgroundColorOverride to deck.themeBg
 - 6-character hex with # prefix.
 
 Always include "explanation".`;
 
 const FEW_SHOT = [
+  /* example 1: write advantages on a bullets slide */
   {
     role: "user" as const,
-    content: `Deck context:
-- topic: "NGO monitoring system for tracking field volunteers"
-- this slide layout: "bullets"
-
-Current slide:
-{ "layout": "bullets", "title": "Key Advantages", "bullets": [], "body": "" }
-
-Instruction:
-"actually write the advantages"
-
+    content: `Deck context: { topic: "NGO monitoring", themeAccent: "#1E3A8A" }
+Current slide: { layout: "bullets", title: "Key Advantages", bullets: [], elements: [] }
+Instruction: "actually write the advantages"
 Return ONLY the JSON patch.`,
   },
   {
@@ -110,55 +140,70 @@ Return ONLY the JSON patch.`,
       explanation: "Wrote four concrete advantages tailored to the NGO monitoring topic.",
     }),
   },
+
+  /* example 2: add a graphic */
   {
     role: "user" as const,
-    content: `Deck context:
-- topic: "Climate report"
-
-Current slide:
-{ "layout": "bullets", "title": "Glacier Retreat Metrics", "bullets": ["Glacier area loss since 1980: 15%", "Average retreat rate: 30 m/yr"] }
-
-Instruction:
-"convert this to a table with sources"
-
+    content: `Deck context: { themeAccent: "#0E7490" }
+Current slide: { layout: "bullets", title: "Quarterly results", elements: [] }
+Instruction: "add a donut chart on the right"
 Return ONLY the JSON patch.`,
   },
   {
     role: "assistant" as const,
     content: JSON.stringify({
-      layout: "table",
-      bullets: [],
-      table: {
-        headers: ["Metric", "Value", "Period"],
-        rows: [
-          ["Glacier area loss", "15%", "Since 1980"],
-          ["Average retreat rate", "30 m/yr", "1980-2020"],
-          ["Ice volume reduction", "25%", "1980-2020"],
-          ["Projected area loss", "40%", "By 2050"],
-        ],
-        source: "IPCC AR6 Working Group I, 2021",
-      },
-      explanation: "Converted the metrics into a four-row table with an IPCC source line.",
+      addElements: [
+        { kind: "decoration", decorationId: "donut", position: "right", size: "medium" },
+      ],
+      explanation: "Placed a donut chart on the right side using the theme accent.",
     }),
   },
+
+  /* example 3: add an icon with color */
   {
     role: "user" as const,
-    content: `Current slide:
-{ "layout": "bullets", "title": "Roadmap", "bullets": ["Q1", "Q2"] }
-
-Instruction:
-"delete the title"
-
+    content: `Deck context: { themeAccent: "#1E3A8A" }
+Current slide: { layout: "title-hero", title: "Project Apollo", elements: [] }
+Instruction: "add a rocket icon at top-right in red"
 Return ONLY the JSON patch.`,
   },
   {
     role: "assistant" as const,
     content: JSON.stringify({
-      hideElements: ["title"],
-      explanation: "Hid the title element.",
+      addElements: [
+        { kind: "icon", iconQuery: "rocket", position: "top-right", size: "small", color: "#DC2626" },
+      ],
+      explanation: "Added a red rocket icon in the top-right.",
+    }),
+  },
+
+  /* example 4: update existing element */
+  {
+    role: "user" as const,
+    content: `Deck context: { themeAccent: "#0E7490" }
+Current slide: {
+  layout: "bullets",
+  title: "Q3",
+  elements: [
+    { id: "dec_abc", kind: "decoration", decorationId: "donut" },
+    { id: "icon_xyz", kind: "icon", iconId: "tabler:rocket" }
+  ]
+}
+Instruction: "make the rocket bigger and move it to the bottom right"
+Return ONLY the JSON patch.`,
+  },
+  {
+    role: "assistant" as const,
+    content: JSON.stringify({
+      updateElements: [
+        { id: "icon_xyz", patch: { position: "bottom-right", size: "large" } },
+      ],
+      explanation: "Moved the rocket icon to the bottom-right and made it larger.",
     }),
   },
 ];
+
+/* --------------------------------- helpers -------------------------------- */
 
 function extractJson(raw: string): string {
   let s = raw.trim();
@@ -173,7 +218,6 @@ function cleanText(s: any): string {
   if (typeof s !== "string") return "";
   return s.replace(/[\u0000-\u001F\u007F\u200B-\u200F\uFEFF]/g, "").replace(/\s+/g, " ").trim();
 }
-
 function cleanList(arr: any): string[] {
   if (!Array.isArray(arr)) return [];
   return arr
@@ -181,15 +225,12 @@ function cleanList(arr: any): string[] {
     .map((s) => s.replace(/[.,;:!?\s]+$/g, "").trim())
     .filter((s) => s.length > 0 && s.length < 400);
 }
-
 function isHex(s: any): s is string {
   return typeof s === "string" && /^#[0-9a-fA-F]{6}$/.test(s.trim());
 }
-
-function uid() {
-  return `a_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+function uid(prefix = "el") {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 }
-
 function cleanTable(t: any): TableData | undefined {
   if (!t || typeof t !== "object") return undefined;
   const headers = Array.isArray(t.headers) ? t.headers.map(cleanText).filter(Boolean) : [];
@@ -209,7 +250,95 @@ function cleanTable(t: any): TableData | undefined {
   return { headers, rows, source: source || undefined };
 }
 
-function applyPatch(slide: Slide, patch: any): Slide {
+/* ----------------------- graphic / icon helpers --------------------------- */
+
+type PositionKey =
+  | "top-left" | "top-right" | "bottom-left" | "bottom-right"
+  | "center" | "left" | "right" | "top" | "bottom";
+
+function isPosition(s: any): s is PositionKey {
+  return [
+    "top-left","top-right","bottom-left","bottom-right",
+    "center","left","right","top","bottom",
+  ].includes(s);
+}
+
+function defaultSizeFor(kind: "decoration" | "icon", decorationId?: string): { w: number; h: number } {
+  if (kind === "icon") return { w: 1.6, h: 1.6 };
+  const dec = decorationId ? getDecoration(decorationId) : undefined;
+  return { w: dec?.defaultW ?? 4, h: dec?.defaultH ?? 3 };
+}
+
+function sizeFromKeyword(
+  kind: "decoration" | "icon",
+  size: "small" | "medium" | "large",
+  decorationId?: string,
+): { w: number; h: number } {
+  const base = defaultSizeFor(kind, decorationId);
+  const factor = size === "small" ? 0.7 : size === "large" ? 1.4 : 1;
+  return { w: clamp(base.w * factor, 0.6, SLIDE_W - 1), h: clamp(base.h * factor, 0.6, SLIDE_H - 1) };
+}
+
+function positionToXY(pos: PositionKey, w: number, h: number): { x: number; y: number } {
+  // Inches from origin. Account for slide padding.
+  const cx = (SLIDE_W - w) / 2;
+  const cy = (SLIDE_H - h) / 2;
+  const top = PAD;
+  const bottom = SLIDE_H - h - PAD;
+  const left = PAD;
+  const right = SLIDE_W - w - PAD;
+
+  switch (pos) {
+    case "top-left":     return { x: left,   y: top };
+    case "top-right":    return { x: right,  y: top };
+    case "bottom-left":  return { x: left,   y: bottom };
+    case "bottom-right": return { x: right,  y: bottom };
+    case "left":         return { x: left,   y: cy };
+    case "right":        return { x: right,  y: cy };
+    case "top":          return { x: cx,     y: top };
+    case "bottom":       return { x: cx,     y: bottom };
+    case "center":
+    default:             return { x: cx,     y: cy };
+  }
+}
+
+function clamp(n: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, n)); }
+
+async function resolveIconQuery(query: string): Promise<string | null> {
+  const q = cleanText(query);
+  if (!q) return null;
+  try {
+    const hits = await searchIconify(q, 1);
+    return hits[0]?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+function findElement(
+  slide: Slide,
+  ref: { id?: string; match?: { kind?: string; decorationId?: string; iconContains?: string } },
+): UploadedImage | undefined {
+  const list = slide.uploadedImages || [];
+  if (ref.id) {
+    const exact = list.find((x) => x.id === ref.id);
+    if (exact) return exact;
+  }
+  if (ref.match) {
+    const m = ref.match;
+    return list.find((x) => {
+      if (m.kind && x.kind !== m.kind) return false;
+      if (m.decorationId && x.decorationId !== m.decorationId) return false;
+      if (m.iconContains && !(x.iconId || "").toLowerCase().includes(m.iconContains.toLowerCase())) return false;
+      return true;
+    });
+  }
+  return undefined;
+}
+
+/* ------------------------------ patch reducer ----------------------------- */
+
+async function applyPatch(slide: Slide, patch: any): Promise<Slide> {
   const next: Slide = { ...slide };
 
   if (typeof patch.title === "string") next.title = cleanText(patch.title);
@@ -251,7 +380,7 @@ function applyPatch(slide: Slide, patch: any): Slide {
     if (t) next.table = t;
   }
 
-  // Element visibility
+  // Element visibility (text containers)
   if (Array.isArray(patch.hideElements)) {
     const map = { ...(next.elementHidden || {}) };
     for (const id of patch.hideElements) if (VALID_ELEMENTS.includes(id)) map[id as ElementId] = true;
@@ -266,6 +395,7 @@ function applyPatch(slide: Slide, patch: any): Slide {
     next.elementOffsets = {};
   }
 
+  // Annotations
   let annotations = [...(next.annotations || [])];
   if (patch.clearAnnotations === true) annotations = [];
   if (Array.isArray(patch.removeAnnotations)) {
@@ -278,8 +408,8 @@ function applyPatch(slide: Slide, patch: any): Slide {
       const text = cleanText(a.text);
       if (!text) continue;
       const anchor: Anchor = VALID_ANCHORS.includes(a.anchor) ? a.anchor : "bottom-left";
-      const ann: Annotation = {
-        id: uid(),
+      annotations.push({
+        id: uid("a"),
         text,
         anchor,
         fontSize: typeof a.fontSize === "number" && isFinite(a.fontSize)
@@ -287,21 +417,116 @@ function applyPatch(slide: Slide, patch: any): Slide {
         color: isHex(a.color) ? a.color : undefined,
         bold: a.bold === true,
         italic: a.italic === true,
-        align: a.align === "left" || a.align === "center" || a.align === "right"
-          ? a.align : undefined,
-      };
-      annotations.push(ann);
+        align: a.align === "left" || a.align === "center" || a.align === "right" ? a.align : undefined,
+      });
     }
   }
   next.annotations = annotations;
 
+  /* ------------ NEW: graphics & icons ------------ */
+
+  let images = [...(next.uploadedImages || [])];
+
+  // Removals first.
+  if (Array.isArray(patch.removeElements)) {
+    if (patch.removeElements.includes("*")) {
+      images = [];
+    } else {
+      const drop = new Set<string>(patch.removeElements.filter((x: any) => typeof x === "string"));
+      images = images.filter((img) => !drop.has(img.id));
+    }
+  }
+
+  // Updates: position / size / color / explicit dims.
+  if (Array.isArray(patch.updateElements)) {
+    for (const u of patch.updateElements) {
+      if (!u || typeof u !== "object") continue;
+      const target = findElement({ ...next, uploadedImages: images } as Slide, u);
+      if (!target) continue;
+      const idx = images.findIndex((x) => x.id === target.id);
+      if (idx < 0) continue;
+      const cur = { ...images[idx] };
+      const p = u.patch || {};
+
+      // Color
+      if (isHex(p.color)) {
+        cur.colorOverrides = { ...(cur.colorOverrides || {}), accent: p.color };
+      }
+      // Size
+      if (p.size === "small" || p.size === "medium" || p.size === "large") {
+        const kind = (cur.kind === "icon" ? "icon" : "decoration") as "icon" | "decoration";
+        const dim = sizeFromKeyword(kind, p.size, cur.decorationId);
+        cur.w = dim.w; cur.h = dim.h;
+      }
+      // Position
+      if (isPosition(p.position)) {
+        const xy = positionToXY(p.position, cur.w, cur.h);
+        cur.x = xy.x; cur.y = xy.y;
+      }
+      // Raw dims (fallback)
+      if (typeof p.x === "number") cur.x = clamp(p.x, -cur.w / 2, SLIDE_W - cur.w / 2);
+      if (typeof p.y === "number") cur.y = clamp(p.y, -cur.h / 2, SLIDE_H - cur.h / 2);
+      if (typeof p.w === "number") cur.w = clamp(p.w, 0.4, SLIDE_W);
+      if (typeof p.h === "number") cur.h = clamp(p.h, 0.4, SLIDE_H);
+
+      images[idx] = cur;
+    }
+  }
+
+  // Additions: resolve sizes, positions, icon queries.
+  if (Array.isArray(patch.addElements)) {
+    for (const a of patch.addElements) {
+      if (!a || typeof a !== "object") continue;
+      const kind: "decoration" | "icon" =
+        a.kind === "icon" ? "icon" :
+        a.kind === "decoration" ? "decoration" : "decoration";
+
+      let decorationId: string | undefined;
+      let iconId: string | undefined;
+
+      if (kind === "decoration") {
+        if (typeof a.decorationId !== "string") continue;
+        if (!getDecoration(a.decorationId)) continue;
+        decorationId = a.decorationId;
+      } else {
+        if (typeof a.iconQuery !== "string" || !a.iconQuery.trim()) continue;
+        const resolved = await resolveIconQuery(a.iconQuery);
+        if (!resolved) continue; // skip icon if no hit
+        iconId = resolved;
+      }
+
+      const sizeKey = a.size === "small" || a.size === "large" ? a.size : "medium";
+      const dim = sizeFromKeyword(kind, sizeKey, decorationId);
+      const positionKey: PositionKey = isPosition(a.position) ? a.position
+        : kind === "icon" ? "top-right" : "right";
+      const xy = positionToXY(positionKey, dim.w, dim.h);
+
+      const newImage: UploadedImage = {
+        id: uid(kind === "icon" ? "icon" : "dec"),
+        kind,
+        decorationId,
+        iconId,
+        dataUrl: "",
+        x: xy.x, y: xy.y, w: dim.w, h: dim.h,
+        colorOverrides: isHex(a.color) ? { accent: a.color } : undefined,
+      };
+      images.push(newImage);
+    }
+  }
+
+  next.uploadedImages = images;
   return next;
 }
+
+/* ------------------------------- POST handler ------------------------------ */
 
 export async function POST(req: NextRequest) {
   try {
     const { deck, theme, slideIndex, instruction } = (await req.json()) as {
-      deck: Deck; theme?: { bg?: string; fg?: string; accent?: string }; slideIndex: number; instruction: string;
+      deck: Deck;
+      theme?: { bg?: string; fg?: string; accent?: string };
+      slideIndex: number;
+      instruction: string;
     };
 
     if (!deck || typeof slideIndex !== "number" || !instruction) {
@@ -342,6 +567,16 @@ export async function POST(req: NextRequest) {
       annotations: (slide.annotations || []).map((a, i) => ({
         index: i, text: a.text, anchor: a.anchor, fontSize: a.fontSize, color: a.color,
       })),
+      // The model needs to see existing elements so it can reference them
+      // by id when the user says "the chart" or "the rocket".
+      elements: (slide.uploadedImages || []).map((img) => ({
+        id: img.id,
+        kind: img.kind,
+        decorationId: img.decorationId,
+        iconId: img.iconId,
+        position: { x: round(img.x), y: round(img.y), w: round(img.w), h: round(img.h) },
+        color: img.colorOverrides?.accent,
+      })),
     };
 
     const completion = await withGroqClient((client) =>
@@ -372,7 +607,7 @@ Return ONLY the JSON patch.`,
 
     const raw = completion.choices[0]?.message?.content || "{}";
     const patch = JSON.parse(extractJson(raw));
-    const updated = applyPatch(slide, patch);
+    const updated = await applyPatch(slide, patch);
 
     return NextResponse.json({
       slide: updated,
@@ -383,3 +618,5 @@ Return ONLY the JSON patch.`,
     return NextResponse.json({ error: err?.message || "Edit failed." }, { status: 500 });
   }
 }
+
+function round(n: number): number { return Math.round(n * 100) / 100; }

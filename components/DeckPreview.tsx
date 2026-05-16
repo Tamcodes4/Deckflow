@@ -1,9 +1,9 @@
 "use client";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Deck, Slide, UploadedImage } from "@/lib/types";
 import type { Theme } from "@/lib/themes";
 import {
-  ChevronLeft, ChevronRight, Image as ImageIcon, Play, RotateCcw,
+  ChevronLeft, ChevronRight, Image as ImageIcon, Play, RotateCcw, Shapes,
 } from "lucide-react";
 import SlideCanvas from "./SlideCanvas";
 import DesignerPanel from "./DesignerPanel";
@@ -12,9 +12,11 @@ import Presenter from "./Presenter";
 import SlideRail from "./SlideRail";
 import HiddenSlidesRenderer, { type HiddenSlidesHandle } from "./HiddenSlidesRenderer";
 import ExportButton from "./ExportButton";
+import DecorationDrawer from "./DecorationDrawer";
 import { exportSlidesToPdf } from "@/lib/pdfExport";
 import { trackEvent } from "@/lib/stats";
 import type { ExportFormat } from "./ExportFormatPicker";
+import { getDecoration } from "@/lib/decorations";
 
 type Props = {
   deck: Deck;
@@ -27,9 +29,14 @@ export default function DeckPreview({ deck, setDeck, theme, onRestart }: Props) 
   const [active, setActive] = useState(0);
   const [downloading, setDownloading] = useState(false);
   const [presenting, setPresenting] = useState(false);
+  const [decorOpen, setDecorOpen] = useState(false);
   const [renderForPdf, setRenderForPdf] = useState(false);
+  const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hiddenRef = useRef<HiddenSlidesHandle>(null);
+
+  // Clear graphic selection when switching slides.
+  useEffect(() => { setSelectedImageId(null); }, [active]);
 
   // Patches accept an opts param so the canvas can flag drag-only updates;
   // we currently treat all updates the same since undo/redo is removed.
@@ -64,6 +71,7 @@ export default function DeckPreview({ deck, setDeck, theme, onRestart }: Props) 
         const h = (probe.height / probe.width) * w;
         const newImage: UploadedImage = {
           id: `img_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+          kind: "user",
           dataUrl,
           x: (13.333 - w) / 2, y: (7.5 - h) / 2, w, h,
         };
@@ -78,6 +86,45 @@ export default function DeckPreview({ deck, setDeck, theme, onRestart }: Props) 
       probe.src = dataUrl;
     };
     reader.readAsDataURL(file);
+  };
+
+  const addDecoration = (decId: string) => {
+    const d = getDecoration(decId);
+    if (!d) return;
+    const w = d.defaultW;
+    const h = d.defaultH;
+    const newImage: UploadedImage = {
+      id: `dec_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+      kind: "decoration",
+      decorationId: decId,
+      dataUrl: "",
+      x: (13.333 - w) / 2, y: (7.5 - h) / 2, w, h,
+    };
+    const slide = deck.slides[active];
+    setDeck({
+      ...deck,
+      slides: deck.slides.map((s, i) =>
+        i === active ? { ...s, uploadedImages: [...(slide.uploadedImages || []), newImage] } : s,
+      ),
+    });
+  };
+
+  const addIcon = (iconId: string) => {
+    const w = 1.6, h = 1.6;
+    const newImage: UploadedImage = {
+      id: `icon_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+      kind: "icon",
+      iconId,
+      dataUrl: "",
+      x: (13.333 - w) / 2, y: (7.5 - h) / 2, w, h,
+    };
+    const slide = deck.slides[active];
+    setDeck({
+      ...deck,
+      slides: deck.slides.map((s, i) =>
+        i === active ? { ...s, uploadedImages: [...(slide.uploadedImages || []), newImage] } : s,
+      ),
+    });
   };
 
   /* ------------------------------- Export -------------------------------- */
@@ -135,6 +182,15 @@ export default function DeckPreview({ deck, setDeck, theme, onRestart }: Props) 
         <Presenter deck={deck} theme={theme} startIndex={active} onClose={() => setPresenting(false)} />
       )}
       {renderForPdf && <HiddenSlidesRenderer ref={hiddenRef} deck={deck} theme={theme} />}
+      <DecorationDrawer
+        open={decorOpen}
+        theme={theme}
+        onClose={() => setDecorOpen(false)}
+        onPick={(pick) => {
+          if (pick.kind === "decoration") addDecoration(pick.id);
+          else if (pick.kind === "icon") addIcon(pick.iconId);
+        }}
+      />
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -156,6 +212,13 @@ export default function DeckPreview({ deck, setDeck, theme, onRestart }: Props) 
             title="Add an image to this slide"
           >
             <ImageIcon size={14} /> Add image
+          </button>
+          <button
+            onClick={() => setDecorOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+            title="Add a graphic from the library"
+          >
+            <Shapes size={14} /> Add graphic
           </button>
           <button
             onClick={() => setPresenting(true)}
@@ -189,8 +252,13 @@ export default function DeckPreview({ deck, setDeck, theme, onRestart }: Props) 
               idx={active}
               total={deck.slides.length}
               deckTitle={deck.title}
+              graphicId={deck.graphic}
+              graphicAccent={deck.graphicAccent}
+              fontId={deck.fontId}
               interactive
               onUpdate={updateActive}
+              selectedImageId={selectedImageId}
+              onSelectImage={setSelectedImageId}
             />
           </div>
           <div className="mt-3 flex items-center justify-between">
@@ -230,7 +298,13 @@ export default function DeckPreview({ deck, setDeck, theme, onRestart }: Props) 
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-zinc-950/60">
-          <DesignerPanel slide={deck.slides[active]} onUpdate={updateActive} />
+          <DesignerPanel
+            slide={deck.slides[active]}
+            theme={theme}
+            onUpdate={updateActive}
+            selectedImageId={selectedImageId}
+            onDeselectImage={() => setSelectedImageId(null)}
+          />
         </div>
       </div>
     </div>

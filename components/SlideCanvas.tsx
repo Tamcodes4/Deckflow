@@ -11,6 +11,10 @@ import {
   isHidden, FONT_SIZE_PRESETS, explicitFontSize,
 } from "@/lib/layoutMath";
 import EditableText from "./EditableText";
+import { getGraphic, svgToDataUri } from "@/lib/graphics";
+import { decorationDataUri, applyDecorationOverrides } from "@/lib/decorations";
+import { resolveFontFamily } from "@/lib/fonts";
+import { iconifySvgUrl } from "@/lib/iconify";
 
 const PT = 0.104;
 const IN = 7.5;
@@ -19,25 +23,34 @@ const inches = (i: number) => `${i * IN}cqw`;
 function clamp(n: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, n)); }
 
 export type SlideUpdater = (patch: Partial<Slide>) => void;
+export type ImageSelector = (id: string | null) => void;
 
 export default function SlideCanvas({
-  slide, theme, idx, total, deckTitle,
+  slide, theme, idx, total, deckTitle, graphicId, graphicAccent, fontId,
   interactive = false,
   onUpdate,
+  selectedImageId,
+  onSelectImage,
 }: {
   slide: Slide;
   theme: Theme;
   idx: number;
   total: number;
   deckTitle: string;
+  graphicId?: string;
+  graphicAccent?: string;
+  fontId?: string;
   interactive?: boolean;
   onUpdate?: SlideUpdater;
+  selectedImageId?: string | null;
+  onSelectImage?: ImageSelector;
 }) {
   const font = effectiveFont(theme.font, slide);
-  const fontFamily =
+  const themeFontFallback =
     font === "serif" ? "Georgia, serif"
     : font === "mono" ? "Consolas, ui-monospace, monospace"
     : "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+  const fontFamily = resolveFontFamily(fontId, themeFontFallback);
 
   const effective: Theme = {
     ...theme,
@@ -47,11 +60,26 @@ export default function SlideCanvas({
   };
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const graphic = getGraphic(graphicId);
+  // Apply optional graphic-level accent override; the graphic only reads
+  // theme.accent so substituting that single field is sufficient.
+  const graphicTheme: Theme = graphicAccent ? { ...effective, accent: graphicAccent } : effective;
+  const graphicSvgMarkup = graphic.id === "none" ? null : graphic.render(graphicTheme);
 
   return (
     <div
       ref={containerRef}
       className="relative w-full"
+      onPointerDown={(e) => {
+        // Click on bare canvas (not an image / no-drag handle) deselects.
+        const target = e.target as HTMLElement;
+        if (interactive && onSelectImage) {
+          // ImageBox calls onSelect on its own pointerdown; if we fire after,
+          // that selection still wins because it's set in the same tick.
+          // Only clear when click landed strictly on this container.
+          if (target === e.currentTarget) onSelectImage(null);
+        }
+      }}
       style={{
         aspectRatio: `${SLIDE_W_IN} / ${SLIDE_H_IN}`,
         background: effective.bg,
@@ -61,11 +89,39 @@ export default function SlideCanvas({
         overflow: "hidden",
       } as React.CSSProperties}
     >
+      {/* Graphic background as an inline SVG block. The SVG itself uses
+          preserveAspectRatio="xMidYMid slice" so it crops correctly whatever
+          our pixel size is. Inline SVG is reliably handled by html2canvas
+          for PDF capture, unlike CSS background-image of a data URI. */}
+      {graphicSvgMarkup && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            zIndex: 0,
+            overflow: "hidden",
+          }}
+          // Inline the SVG markup so it lives directly in the DOM tree.
+          dangerouslySetInnerHTML={{
+            __html: graphicSvgMarkup.replace(
+              /^<svg /,
+              `<svg style="display:block;width:100%;height:100%;" `,
+            ),
+          }}
+        />
+      )}
       <Inner
         slide={slide} theme={effective} idx={idx} total={total} deckTitle={deckTitle}
         interactive={interactive} onUpdate={onUpdate} canvasRef={containerRef}
       />
-      <ImageLayer slide={slide} interactive={interactive} onUpdate={onUpdate} canvasRef={containerRef} theme={effective} />
+      <ImageLayer
+        slide={slide} interactive={interactive} onUpdate={onUpdate}
+        canvasRef={containerRef} theme={effective}
+        selectedImageId={selectedImageId}
+        onSelectImage={onSelectImage}
+      />
       <AnnotationLayer slide={slide} theme={effective} />
     </div>
   );
@@ -710,9 +766,12 @@ function Closing({ slide, theme, interactive, onUpdate, canvasRef }: any) {
 
 function ImageLayer({
   slide, interactive, onUpdate, canvasRef, theme,
+  selectedImageId, onSelectImage,
 }: {
   slide: Slide; interactive: boolean; onUpdate?: SlideUpdater;
   canvasRef: React.RefObject<HTMLDivElement>; theme: Theme;
+  selectedImageId?: string | null;
+  onSelectImage?: ImageSelector;
 }) {
   const images = slide.uploadedImages || [];
   if (images.length === 0) return null;
@@ -724,6 +783,8 @@ function ImageLayer({
           key={img.id} img={img} slide={slide}
           interactive={interactive} onUpdate={onUpdate} canvasRef={canvasRef}
           theme={theme}
+          selected={selectedImageId === img.id}
+          onSelect={onSelectImage}
         />
       ))}
     </>
@@ -732,9 +793,12 @@ function ImageLayer({
 
 function ImageBox({
   img, slide, interactive, onUpdate, canvasRef, theme,
+  selected, onSelect,
 }: {
   img: UploadedImage; slide: Slide; interactive: boolean;
   onUpdate?: SlideUpdater; canvasRef: React.RefObject<HTMLDivElement>; theme: Theme;
+  selected?: boolean;
+  onSelect?: ImageSelector;
 }) {
   const [hover, setHover] = useState(false);
   const dragRef = useRef<{ startX: number; startY: number; ox: number; oy: number; mode: "move" | "resize" } | null>(null);
@@ -787,7 +851,7 @@ function ImageBox({
 
   return (
     <div
-      onPointerDown={(e) => onPointerDown(e, "move")}
+      onPointerDown={(e) => { onSelect?.(img.id); onPointerDown(e, "move"); }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
@@ -800,16 +864,25 @@ function ImageBox({
         width: inches(img.w),
         height: inches(img.h),
         cursor: interactive ? "grab" : "default",
-        outline: interactive && hover ? `2px solid ${theme.accent}` : "none",
+        outline: interactive && (selected || hover)
+          ? `${selected ? 2.5 : 2}px solid ${theme.accent}` : "none",
         outlineOffset: pt(2),
         userSelect: "none",
+        zIndex: selected ? 5 : 1,
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={img.dataUrl}
+        src={
+          img.kind === "decoration" && img.decorationId
+            ? decorationDataUri(img.decorationId, applyDecorationOverrides(theme, img.colorOverrides))
+          : img.kind === "icon" && img.iconId
+            ? iconifySvgUrl(img.iconId, img.colorOverrides?.accent || theme.accent)
+            : img.dataUrl
+        }
         alt=""
         draggable={false}
+        crossOrigin="anonymous"
         style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}
       />
       {interactive && hover && onUpdate && (

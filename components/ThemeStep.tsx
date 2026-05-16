@@ -1,7 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PRESET_THEMES, type Theme } from "@/lib/themes";
-import { Palette } from "lucide-react";
+import { ChevronLeft, ChevronRight, Palette } from "lucide-react";
+
+const PAGE_SIZE = 8;
 
 type Props = {
   theme: Theme;
@@ -22,6 +24,13 @@ export default function ThemeStep({ theme, setTheme, onBack, onGenerate, loading
     font: theme.font,
   });
   const [tab, setTab] = useState<"preset" | "custom">("preset");
+  const [page, setPage] = useState(0);
+
+  const totalPages = Math.max(1, Math.ceil(PRESET_THEMES.length / PAGE_SIZE));
+  const visible = useMemo(
+    () => PRESET_THEMES.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [page],
+  );
 
   const useCustom = () => {
     setTheme({ ...custom, id: "custom", name: "Custom" });
@@ -32,7 +41,7 @@ export default function ThemeStep({ theme, setTheme, onBack, onGenerate, loading
     <div className="fade-in mx-auto w-full max-w-5xl">
       <div className="mb-8 text-center">
         <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
-          <Palette size={12} /> Step 2 of 3
+          <Palette size={12} /> Step 2 of 5
         </div>
         <h1 className="text-4xl font-semibold tracking-tight">Pick a theme</h1>
         <p className="mt-2 text-white/60">
@@ -60,30 +69,52 @@ export default function ThemeStep({ theme, setTheme, onBack, onGenerate, loading
       </div>
 
       {tab === "preset" && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-          {PRESET_THEMES.map((t) => {
-            const active = theme.id === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTheme(t)}
-                className={`group overflow-hidden rounded-2xl border transition ${
-                  active ? "border-white/60 ring-2 ring-white/40" : "border-white/10 hover:border-white/30"
-                }`}
-              >
-                <ThemePreview theme={t} />
-                <div className="flex items-center justify-between bg-black/40 px-3 py-2 text-left">
-                  <span className="text-sm">{t.name}</span>
-                  <div className="flex gap-1">
-                    <Swatch color={t.bg} />
-                    <Swatch color={t.fg} />
-                    <Swatch color={t.accent} />
+        <>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+            {visible.map((t) => {
+              const active = theme.id === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTheme(t)}
+                  className={`group overflow-hidden rounded-2xl border transition ${
+                    active ? "border-white/60 ring-2 ring-white/40" : "border-white/10 hover:border-white/30"
+                  }`}
+                >
+                  <ThemePreview theme={t} />
+                  <div className="flex items-center justify-between bg-black/40 px-3 py-2 text-left">
+                    <span className="text-sm">{t.name}</span>
+                    <div className="flex gap-1">
+                      <Swatch color={t.bg} />
+                      <Swatch color={t.fg} />
+                      <Swatch color={t.accent} />
+                    </div>
                   </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 flex items-center justify-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/75 hover:bg-white/10 disabled:opacity-40"
+            >
+              <ChevronLeft size={12} /> Prev
+            </button>
+            <span className="text-xs text-white/45">
+              Page {page + 1} of {totalPages} · {PRESET_THEMES.length} themes
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page === totalPages - 1}
+              className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/75 hover:bg-white/10 disabled:opacity-40"
+            >
+              Next <ChevronRight size={12} />
+            </button>
+          </div>
+        </>
       )}
 
       {tab === "custom" && (
@@ -130,7 +161,7 @@ export default function ThemeStep({ theme, setTheme, onBack, onGenerate, loading
           onClick={onGenerate}
           className="rounded-xl bg-white px-5 py-2.5 font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {loading ? "Generating…" : "Generate deck →"}
+          {loading ? "Generating…" : "Next →"}
         </button>
       </div>
     </div>

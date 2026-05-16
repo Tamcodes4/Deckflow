@@ -4,14 +4,17 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PromptStep from "@/components/PromptStep";
 import ThemeStep from "@/components/ThemeStep";
+import FontStep from "@/components/FontStep";
+import GraphicStep from "@/components/GraphicStep";
 import DeckPreview from "@/components/DeckPreview";
+import GenerateOverlay from "@/components/GenerateOverlay";
 import { PRESET_THEMES, type Theme } from "@/lib/themes";
 import type { Deck, ContentDensity } from "@/lib/types";
 import { getCurrentUser, isLoggedIn, logout, onAuthStateChange, type AppUser } from "@/lib/auth";
 import { trackEvent } from "@/lib/stats";
 import { LogOut } from "lucide-react";
 
-type Step = "prompt" | "theme" | "deck";
+type Step = "prompt" | "theme" | "font" | "graphic" | "deck";
 
 export default function Page() {
   const router = useRouter();
@@ -44,6 +47,9 @@ export default function Page() {
   const [density, setDensity] = useState<ContentDensity>("balanced");
   const [includeReferences, setIncludeReferences] = useState(true);
   const [theme, setTheme] = useState<Theme>(PRESET_THEMES[0]);
+  const [graphicId, setGraphicId] = useState<string>("none");
+  const [graphicAccent, setGraphicAccent] = useState<string | undefined>(undefined);
+  const [fontId, setFontId] = useState<string>("inter");
   const [deck, setDeck] = useState<Deck | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,24 +57,35 @@ export default function Page() {
   const generate = async () => {
     setLoading(true);
     setError(null);
+    // Minimum animation time of 10s so the overlay always feels intentional.
+    const minDelay = new Promise<void>((r) => window.setTimeout(r, 10000));
     try {
-      const res = await fetch("/api/generate", {
+      const fetchPromise = fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, slideCount, audience, tone, theme, density, includeReferences }),
+      }).then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "Generation failed");
+        return data;
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Generation failed");
-      setDeck(data.deck);
+
+      const [data] = await Promise.all([fetchPromise, minDelay]);
+      const deckWithExtras: Deck = { ...data.deck, graphic: graphicId, graphicAccent, fontId };
+      setDeck(deckWithExtras);
       setStep("deck");
-      trackEvent({
-        kind: "deck_generated",
-        topic: prompt.slice(0, 200),
-        slides: data.deck?.slides?.length || 0,
-        ts: Date.now(),
-        uid: user?.uid,
-      });
+      if (user) {
+        trackEvent({
+          kind: "deck_generated",
+          topic: prompt.slice(0, 200),
+          slides: deckWithExtras?.slides?.length || 0,
+          ts: Date.now(),
+          uid: user.uid,
+        });
+      }
     } catch (e: any) {
+      // Even on failure, let the animation finish so the UX isn't jarring.
+      await minDelay.catch(() => {});
       setError(e.message || "Something went wrong");
     } finally {
       setLoading(false);
@@ -142,6 +159,29 @@ export default function Page() {
           theme={theme}
           setTheme={setTheme}
           onBack={() => setStep("prompt")}
+          onGenerate={() => setStep("font")}
+          loading={false}
+        />
+      )}
+
+      {step === "font" && (
+        <FontStep
+          theme={theme}
+          fontId={fontId}
+          setFontId={setFontId}
+          onBack={() => setStep("theme")}
+          onNext={() => setStep("graphic")}
+        />
+      )}
+
+      {step === "graphic" && (
+        <GraphicStep
+          theme={theme}
+          graphicId={graphicId}
+          setGraphicId={setGraphicId}
+          graphicAccent={graphicAccent}
+          setGraphicAccent={setGraphicAccent}
+          onBack={() => setStep("font")}
           onGenerate={generate}
           loading={loading}
         />
@@ -150,15 +190,23 @@ export default function Page() {
       {step === "deck" && deck && (
         <DeckPreview deck={deck} setDeck={setDeck} theme={theme} onRestart={restart} />
       )}
+
+      {/* Full-screen "deck is being prepared" overlay. Mounts as soon as
+          loading flips on (i.e. when the user clicks Generate on the
+          GraphicStep) and unmounts after both the API call and a 10s
+          minimum animation finish. */}
+      <GenerateOverlay open={loading} />
     </main>
   );
 }
 
 function Stepper({ step }: { step: Step }) {
   const steps: { id: Step; label: string }[] = [
-    { id: "prompt", label: "Prompt" },
-    { id: "theme",  label: "Theme"  },
-    { id: "deck",   label: "Deck"   },
+    { id: "prompt",   label: "Prompt"   },
+    { id: "theme",    label: "Theme"    },
+    { id: "font",     label: "Font"     },
+    { id: "graphic",  label: "Graphic"  },
+    { id: "deck",     label: "Deck"     },
   ];
   const idx = steps.findIndex((s) => s.id === step);
   return (

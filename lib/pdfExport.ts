@@ -20,10 +20,15 @@ export async function exportSlidesToPdf(
 
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
-    // Render at 2x for sharper output.
+    // Render at 2x for sharper output. Pass explicit pixel dims so html2canvas
+    // captures the full 1280x720 slide regardless of how the DOM measures.
     const canvas = await html2canvas(node, {
       backgroundColor: null,
       scale: 2,
+      width: 1280,
+      height: 720,
+      windowWidth: 1280,
+      windowHeight: 720,
       useCORS: true,
       logging: false,
     });

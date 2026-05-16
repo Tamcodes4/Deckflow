@@ -6,6 +6,9 @@ import {
   titleSize, subtitleSize, bulletSize, quoteSize,
   tableFontSize, effectiveFont, isHidden,
 } from "@/lib/layoutMath";
+import { getGraphic, svgToDataUri } from "@/lib/graphics";
+import { decorationDataUri, applyDecorationOverrides } from "@/lib/decorations";
+import { iconifySvgUrl } from "@/lib/iconify";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -82,11 +85,22 @@ function addContentTitle(s: PptxGenJS.Slide, slide: Slide, theme: Theme) {
 
 /* --------------------------------- Layouts -------------------------------- */
 
+function applyGraphicBg(s: PptxGenJS.Slide, theme: Theme, deck: Deck) {
+  const graphic = getGraphic(deck.graphic);
+  if (graphic.id === "none") return;
+  const graphicTheme: Theme = deck.graphicAccent
+    ? { ...theme, accent: deck.graphicAccent }
+    : theme;
+  const dataUri = svgToDataUri(graphic.render(graphicTheme));
+  s.addImage({ data: dataUri, x: 0, y: 0, w: W, h: H });
+}
+
 async function renderTitleHero(
   pptx: PptxGenJS, deck: Deck, slide: Slide, theme: Theme,
 ): Promise<PptxGenJS.Slide> {
   const s = pptx.addSlide();
   s.background = { color: hex(theme.bg) };
+  applyGraphicBg(s, theme, deck);
 
   const title = slide.title || deck.title;
   const sub = slide.subtitle || deck.subtitle || "";
@@ -118,6 +132,7 @@ async function renderBullets(
 ): Promise<PptxGenJS.Slide> {
   const s = pptx.addSlide();
   s.background = { color: hex(theme.bg) };
+  applyGraphicBg(s, theme, deck);
   addAccentBar(s, theme);
   addContentTitle(s, slide, theme);
 
@@ -145,6 +160,7 @@ async function renderTwoColumn(
 ): Promise<PptxGenJS.Slide> {
   const s = pptx.addSlide();
   s.background = { color: hex(theme.bg) };
+  applyGraphicBg(s, theme, deck);
   addAccentBar(s, theme);
   addContentTitle(s, slide, theme);
 
@@ -179,6 +195,7 @@ async function renderTable(
 ): Promise<PptxGenJS.Slide> {
   const s = pptx.addSlide();
   s.background = { color: hex(theme.bg) };
+  applyGraphicBg(s, theme, deck);
   addAccentBar(s, theme);
   addContentTitle(s, slide, theme);
 
@@ -243,6 +260,7 @@ async function renderQuote(
 ): Promise<PptxGenJS.Slide> {
   const s = pptx.addSlide();
   s.background = { color: hex(theme.bg) };
+  applyGraphicBg(s, theme, deck);
 
   s.addText("\u201C", {
     x: PAD, y: 0.6, w: 2.0, h: 2.0,
@@ -274,13 +292,14 @@ async function renderQuote(
 }
 
 async function renderSection(
-  pptx: PptxGenJS, _deck: Deck, slide: Slide, theme: Theme,
+  pptx: PptxGenJS, deck: Deck, slide: Slide, theme: Theme,
 ): Promise<PptxGenJS.Slide> {
   const s = pptx.addSlide();
   const overridden = !!slide.backgroundColorOverride;
   const panel = overridden ? theme.bg : theme.accent;
   const textCol = overridden ? theme.fg : theme.bg;
   s.background = { color: hex(panel) };
+  applyGraphicBg(s, theme, deck);
 
   if (!isHidden(slide, "title")) {
     const o = offset(slide, "title");
@@ -308,6 +327,7 @@ async function renderReferences(
 ): Promise<PptxGenJS.Slide> {
   const s = pptx.addSlide();
   s.background = { color: hex(theme.bg) };
+  applyGraphicBg(s, theme, deck);
   addAccentBar(s, theme);
   addContentTitle(s, { ...slide, title: slide.title || "References" }, theme);
 
@@ -332,10 +352,11 @@ async function renderReferences(
 }
 
 async function renderClosing(
-  pptx: PptxGenJS, _deck: Deck, slide: Slide, theme: Theme,
+  pptx: PptxGenJS, deck: Deck, slide: Slide, theme: Theme,
 ): Promise<PptxGenJS.Slide> {
   const s = pptx.addSlide();
   s.background = { color: hex(theme.bg) };
+  applyGraphicBg(s, theme, deck);
   addAccentBar(s, theme);
 
   if (!isHidden(slide, "title")) {
@@ -442,6 +463,7 @@ export async function POST(req: NextRequest) {
     pptx.title = deck.title;
 
     const total = deck.slides.length;
+    const graphic = getGraphic(deck.graphic);
     for (let i = 0; i < total; i++) {
       const slide = deck.slides[i];
       const eff = effectiveTheme(theme, slide);
@@ -457,7 +479,10 @@ export async function POST(req: NextRequest) {
         case "bullets":
         default:           s = await renderBullets(pptx, deck, slide, eff, i, total); break;
       }
-      drawUploadedImages(s, slide);
+      // Apply graphic LAST so the image sits at the highest z-order, but mark
+      // as background so it doesn't cover content. pptxgenjs has no
+      // "send-to-back" so we apply via background image fallback below.
+      await drawUploadedImages(s, slide, eff);
       drawAnnotations(s, eff, slide);
     }
 
@@ -480,12 +505,29 @@ export async function POST(req: NextRequest) {
 }
 
 
-function drawUploadedImages(s: PptxGenJS.Slide, slide: Slide) {
+async function drawUploadedImages(s: PptxGenJS.Slide, slide: Slide, theme: Theme) {
   const imgs = slide.uploadedImages || [];
   for (const img of imgs) {
-    s.addImage({
-      data: img.dataUrl,
-      x: img.x, y: img.y, w: img.w, h: img.h,
-    });
+    let data: string;
+    if (img.kind === "decoration" && img.decorationId) {
+      const eff = applyDecorationOverrides(theme, img.colorOverrides);
+      data = decorationDataUri(img.decorationId, eff);
+    } else if (img.kind === "icon" && img.iconId) {
+      // Pull the recolored SVG from Iconify and embed as data URI.
+      const color = img.colorOverrides?.accent || theme.accent;
+      try {
+        const url = iconifySvgUrl(img.iconId, color);
+        const res = await fetch(url);
+        if (!res.ok) continue;
+        const svg = await res.text();
+        data = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+      } catch {
+        continue;
+      }
+    } else {
+      data = img.dataUrl;
+    }
+    if (!data) continue;
+    s.addImage({ data, x: img.x, y: img.y, w: img.w, h: img.h });
   }
 }

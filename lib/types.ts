@@ -45,11 +45,18 @@ export type Reference = {
 
 export type UploadedImage = {
   id: string;
-  dataUrl: string;     // base64 data: URL
-  x: number;           // inches from left
-  y: number;           // inches from top
-  w: number;           // inches
-  h: number;           // inches
+  /** "user" = uploaded photo. "decoration" = SVG decoration. "icon" = Iconify icon. */
+  kind?: "user" | "decoration" | "icon";
+  dataUrl: string;     // for "user": base64 data: URL. Empty for decoration/icon.
+  decorationId?: string;
+  /** Iconify id like "tabler:rocket" or "mdi:home" — used when kind === "icon". */
+  iconId?: string;
+  /** Per-element color overrides applied on top of the slide theme. */
+  colorOverrides?: { accent?: string; muted?: string; fg?: string };
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 };
 
 export type Slide = {
@@ -90,6 +97,12 @@ export type Deck = {
   density?: ContentDensity;
   references?: Reference[];
   includeReferences?: boolean;
+  /** Background graphic id (see lib/graphics.ts). "none" for no graphic. */
+  graphic?: string;
+  /** Optional accent override for the graphic. Hex like "#DC2626". */
+  graphicAccent?: string;
+  /** Selected font preset id (see lib/fonts.ts). Falls back to theme.font. */
+  fontId?: string;
 };
 
 export type GenerateRequest = {

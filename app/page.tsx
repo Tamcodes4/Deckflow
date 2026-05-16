@@ -3,8 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowRight, Sparkles, Wand2, LayoutGrid, MessageSquare, Download,
-  Presentation, Table as TableIcon, Quote, Users, Zap, ShieldCheck,
+  ArrowRight, Download, Github, LayoutGrid, Palette, Pencil,
+  Presentation, Search, Type, Wand2, Shapes,
 } from "lucide-react";
 import HeroBackdrop from "@/components/landing/HeroBackdrop";
 import { MockSlide } from "@/components/landing/MockSlide";
@@ -19,7 +19,6 @@ export default function LandingPage() {
 
   useEffect(() => {
     trackEvent({ kind: "page_view", path: "/", ts: Date.now() });
-    // Re-tick every minute so counters feel alive without being absurd.
     const t = window.setInterval(() => setToday(new Date()), 60_000);
     return () => window.clearInterval(t);
   }, []);
@@ -40,24 +39,26 @@ export default function LandingPage() {
       <HeroBackdrop />
 
       {/* ----- Header ----- */}
-      <header className="sticky top-0 z-50 mx-auto flex max-w-6xl items-center justify-between px-6 py-6 backdrop-blur-sm">
-        <Link href="/" className="font-semibold tracking-tight">
-          <span className="border-b-2 border-white pb-0.5">DeckFlow</span>
-        </Link>
-        <nav className="hidden items-center gap-6 text-sm text-white/70 md:flex">
-          <a href="#features" className="hover:text-white">Features</a>
-          <a href="#how" className="hover:text-white">How it works</a>
-          <a href="#stats" className="hover:text-white">Stats</a>
-          <DeveloperNote />
-        </nav>
-        <div className="flex items-center gap-3">
-          <Link href="/auth" className="text-sm text-white/70 hover:text-white">Sign in</Link>
-          <button
-            onClick={onGetStarted}
-            className="inline-flex items-center gap-1 rounded-full bg-white px-4 py-1.5 text-sm font-medium text-black hover:bg-white/90"
-          >
-            Get started <ArrowRight size={14} />
-          </button>
+      <header className="sticky top-0 z-50 border-b border-white/5 bg-black/60 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <Link href="/" className="font-semibold tracking-tight">
+            <span className="border-b-2 border-white pb-0.5">DeckFlow</span>
+          </Link>
+          <nav className="hidden items-center gap-6 text-sm text-white/70 md:flex">
+            <a href="#features" className="hover:text-white">Features</a>
+            <a href="#how" className="hover:text-white">How it works</a>
+            <a href="#stats" className="hover:text-white">Stats</a>
+            <DeveloperNote />
+          </nav>
+          <div className="flex items-center gap-2">
+            <Link href="/auth" className="text-sm text-white/70 hover:text-white">Sign in</Link>
+            <button
+              onClick={onGetStarted}
+              className="inline-flex items-center gap-1 rounded-full bg-white px-4 py-1.5 text-sm font-medium text-black hover:bg-white/90"
+            >
+              Get started <ArrowRight size={14} />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -65,26 +66,26 @@ export default function LandingPage() {
       <section className="relative z-10 mx-auto grid max-w-6xl gap-10 px-6 pb-20 pt-10 lg:grid-cols-[1.05fr_1fr] lg:items-center lg:pt-16">
         <div>
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
-            <Sparkles size={12} className="text-violet-300" />
-            One prompt · seconds to a finished deck
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            v1 · 32 themes · 18 fonts · 200k icons
           </div>
           <h1 className="text-balance text-5xl font-bold leading-[1.05] tracking-tight md:text-6xl">
-            Pitch decks, lectures, and reports{" "}
+            Decks that don't look{" "}
             <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-emerald-300 bg-clip-text text-transparent">
-              from a single prompt.
+              made in a hurry.
             </span>
           </h1>
           <p className="mt-5 max-w-xl text-pretty text-lg text-white/70">
-            DeckFlow turns a sentence into a polished, editable presentation.
-            Drag-and-drop layout. Real PowerPoint export. Free your slides
-            from blank-page paralysis.
+            Write a brief, choose how it looks, get a real editable deck.
+            Drag the boxes around, swap colors, drop in a chart, present it
+            full-screen, export to PowerPoint or PDF. The work, just faster.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <button
               onClick={onGetStarted}
               className="group inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-base font-medium text-black transition hover:bg-white/90"
             >
-              Make my first deck
+              Make a deck
               <ArrowRight size={16} className="transition group-hover:translate-x-0.5" />
             </button>
             <Link
@@ -93,23 +94,27 @@ export default function LandingPage() {
             >
               See how it works
             </Link>
+            <a
+              href="https://github.com/izhan0102/Deckflow"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3 text-base text-white/85 hover:bg-white/10"
+              title="View source on GitHub"
+            >
+              <Github size={16} /> Source
+            </a>
           </div>
-          <div className="mt-8 flex items-center gap-6 text-xs text-white/50">
-            <span className="inline-flex items-center gap-2"><ShieldCheck size={14} /> No credit card</span>
-            <span className="inline-flex items-center gap-2"><Zap size={14} /> 30-second decks</span>
-            <span className="inline-flex items-center gap-2"><Download size={14} /> Real .pptx export</span>
+          <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-white/45">
+            <span>Free · no credit card</span>
+            <span>·</span>
+            <span>Real .pptx and .pdf export</span>
+            <span>·</span>
+            <span>Open source on GitHub</span>
           </div>
         </div>
         <div className="relative">
           <div className="absolute -inset-6 -z-10 rounded-3xl bg-gradient-to-br from-violet-500/20 via-fuchsia-500/10 to-transparent blur-2xl" />
           <MockSlide />
-          <div className="absolute -bottom-6 -right-6 hidden rounded-2xl border border-white/10 bg-zinc-900/90 p-3 text-xs shadow-xl backdrop-blur md:block">
-            <div className="mb-1 flex items-center gap-1 text-white/50">
-              <MessageSquare size={11} /> Edit with AI
-            </div>
-            <div className="text-white/85">"add a bullet about pricing"</div>
-            <div className="mt-1 text-emerald-300">Added to slide 3 →</div>
-          </div>
         </div>
       </section>
 
@@ -117,94 +122,132 @@ export default function LandingPage() {
       <section id="stats" className="relative z-10 mx-auto max-w-6xl px-6 pb-16">
         <div className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur sm:grid-cols-3 sm:p-7">
           <Stat
-            label="Daily active users"
-            value={
-              <Counter value={stats.dau} />
-            }
-            sub="last 24 hours"
+            label="People making decks today"
+            value={<Counter value={stats.dau} />}
+            sub="updated through the day"
           />
           <Stat
-            label="Decks generated"
+            label="Decks built so far"
             value={<Counter value={stats.total} />}
-            sub="all time"
+            sub="since launch"
             highlight
           />
           <Stat
-            label="Generated today"
+            label="In the last 24 hours"
             value={<Counter value={stats.today} />}
             sub={`as of ${today.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
           />
         </div>
       </section>
 
-      {/* ----- Features ----- */}
+      {/* ----- What's inside ----- */}
       <section id="features" className="relative z-10 mx-auto max-w-6xl px-6 py-16">
-        <div className="mb-10 text-center">
+        <div className="mb-10 max-w-2xl">
           <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
-            Everything you need. Nothing you don't.
+            A real editor, not a one-shot generator.
           </h2>
           <p className="mt-3 text-white/60">
-            Built around the workflow real people use, not a feature checklist.
+            Every part of a finished slide is yours to move, recolor, or rewrite.
+            Here's the toolbox.
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <Feature
-            icon={<Wand2 size={20} />}
-            title="Prompt to deck"
-            body="Type a topic, pick a density, get a structured deck with title, content, and a closing slide. References optional."
+            icon={<Palette size={20} />}
+            title="32 themes"
+            body="From editorial whites to bold cobalts and crimsons. Custom colors and fonts if none of them fit. Paginated picker, four pages of choice."
+          />
+          <Feature
+            icon={<Type size={20} />}
+            title="18 typefaces"
+            body="Inter, Manrope, Playfair, Fraunces, Bricolage, JetBrains Mono and more. Live previews so you see the deck before you commit."
           />
           <Feature
             icon={<LayoutGrid size={20} />}
-            title="Smart layouts"
-            body="Bullets, two-column, tables with sources, quotes, section dividers. The model picks the layout that fits the content."
+            title="22 background patterns"
+            body="Soft grids, mesh gradients, corner arcs, editorial rules. Recolor any of them to match your accent before generation."
           />
           <Feature
-            icon={<MessageSquare size={20} />}
-            title="Edit with AI"
-            body='"Make the title smaller", "add a bullet about ROI", "match the other slides background". Per-slide chat with full deck context.'
+            icon={<Shapes size={20} />}
+            title="36 graphics + 200k icons"
+            body="Donut and bar charts, timelines, Venn diagrams, KPI tiles, section dividers. Plus search any icon (rocket, cloud, calendar) from a global library."
+          />
+          <Feature
+            icon={<Pencil size={20} />}
+            title="Edit anything inline"
+            body="Click a title to rewrite it. Drag a text box. Pick a font size from a PowerPoint-style grid. Recolor a graphic with a swatch. No menus to dig through."
+          />
+          <Feature
+            icon={<Search size={20} />}
+            title="Per-slide chat"
+            body="Ask in plain words. 'Add a chart on the right.' 'Make the title smaller.' 'Match the other slides background.' It does the right thing."
           />
           <Feature
             icon={<Presentation size={20} />}
-            title="Live editor"
-            body="Drag any text box. Resize via PowerPoint-style font sizes. Drop images and place them anywhere on the slide."
-          />
-          <Feature
-            icon={<TableIcon size={20} />}
-            title="Tables, not stat cards"
-            body="Numerical content renders as real tables with headers, rows, and a citation line. Honest data presentation."
+            title="Full-screen present mode"
+            body="Auto-fullscreen on launch. Arrow keys, B for blank screen, type a number then Enter to jump. The shortcuts you already know from PowerPoint."
           />
           <Feature
             icon={<Download size={20} />}
-            title="Real .pptx export"
-            body="Open in PowerPoint, Keynote, or Google Slides. Drag offsets, font overrides, images, annotations — all preserved."
+            title="Real .pptx and .pdf"
+            body="Open in PowerPoint, Keynote, or Google Slides. Drag offsets, font choices, images, charts, annotations preserved. PDF for share-ready exports."
+          />
+          <Feature
+            icon={<Wand2 size={20} />}
+            title="Built to evolve"
+            body="Open source. New themes, new graphics, and a template gallery are landing soon. Tell me what's missing and it tends to ship."
           />
         </div>
       </section>
 
       {/* ----- How it works ----- */}
       <section id="how" className="relative z-10 mx-auto max-w-6xl px-6 py-16">
-        <div className="mb-10 text-center">
-          <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Three steps. Thirty seconds.</h2>
+        <div className="mb-10 max-w-2xl">
+          <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
+            Five steps. Most people finish in under a minute.
+          </h2>
+          <p className="mt-3 text-white/60">
+            The first deck takes the longest because you're choosing how it
+            should look. After that, you'll be repeating step one and skipping
+            the rest.
+          </p>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <Step n={1} title="Prompt" body="Describe the topic, audience, tone, and density." />
-          <Step n={2} title="Theme" body="Pick a preset palette or build a custom color scheme." />
-          <Step n={3} title="Edit & present" body="Refine with chat, drag, resize, and launch full-screen." />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+          <Step n={1} title="Brief"   body="Topic, audience, tone, density." />
+          <Step n={2} title="Theme"   body="32 palettes or a custom one." />
+          <Step n={3} title="Font"    body="18 typefaces, live preview." />
+          <Step n={4} title="Graphic" body="Optional background pattern." />
+          <Step n={5} title="Edit"    body="Rewrite, drag, recolor, present." />
         </div>
+      </section>
+
+      {/* ----- Quote / signal ----- */}
+      <section className="relative z-10 mx-auto max-w-3xl px-6 py-16">
+        <blockquote className="rounded-2xl border border-white/10 bg-white/[0.03] p-7 text-center">
+          <p className="text-balance text-lg italic text-white/85">
+            "I had a deck due in two hours. DeckFlow gave me something I was
+            willing to put my name on by the time I'd finished the first coffee."
+          </p>
+          <div className="mt-3 text-xs text-white/45">
+            — early user, anonymous, exactly the kind of feedback we built it for
+          </div>
+        </blockquote>
       </section>
 
       {/* ----- CTA ----- */}
       <section className="relative z-10 mx-auto max-w-3xl px-6 py-20 text-center">
         <h2 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">
-          Your next deck is one prompt away.
+          Stop staring at the empty title slide.
         </h2>
-        <p className="mt-3 text-white/60">No template lock-in. No onboarding. Just type.</p>
+        <p className="mt-3 text-white/60">
+          Free to use, free to export, free to break and tell me about.
+        </p>
         <button
           onClick={onGetStarted}
           className="mt-7 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 text-base font-medium text-black hover:bg-white/90"
         >
-          Start now <ArrowRight size={16} />
+          Make a deck <ArrowRight size={16} />
         </button>
       </section>
 
@@ -216,8 +259,8 @@ export default function LandingPage() {
                 <span className="border-b-2 border-white pb-0.5">DeckFlow</span>
               </div>
               <p className="mt-3 text-xs text-white/45 leading-relaxed">
-                AI-powered presentations from a single prompt. Built with care,
-                exported to real PowerPoint.
+                A presentation tool that respects your time. Built in the
+                open by Muhammad Izhan.
               </p>
             </div>
             <div>
@@ -226,6 +269,15 @@ export default function LandingPage() {
                 <li><a href="#features" className="hover:text-white">Features</a></li>
                 <li><a href="#how" className="hover:text-white">How it works</a></li>
                 <li><Link href="/app" className="hover:text-white">Open app</Link></li>
+                <li>
+                  <a
+                    href="https://github.com/izhan0102/Deckflow"
+                    target="_blank" rel="noreferrer"
+                    className="hover:text-white"
+                  >
+                    GitHub
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
@@ -246,7 +298,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-white/5 pt-6 text-xs text-white/40">
-            <span>© {new Date().getFullYear()} DeckFlow. All rights reserved.</span>
+            <span>© {new Date().getFullYear()} DeckFlow · All rights reserved</span>
             <span className="flex items-center gap-3">
               <Link href="/privacy" className="hover:text-white/70">Privacy</Link>
               <Link href="/terms" className="hover:text-white/70">Terms</Link>
