@@ -1,36 +1,119 @@
 # DeckFlow
 
-AI presentation builder. Type a short prompt, pick a theme, get an editable deck in seconds. Drag text boxes, edit them inline, swap colors, ask the chat to rewrite a slide, drop in your own images, and export to PowerPoint or PDF.
+AI presentation builder. Type a short prompt, pick a theme, get an editable deck in seconds. Drag text boxes, edit them inline, swap colors, drop in charts and icons, ask the chat to rewrite a slide, and export to PowerPoint or PDF.
 
-Live preview, full-screen presenter mode, and slide reorder all included.
+Live preview, full-screen presenter mode, slide reorder, and a 200,000-icon library all included.
+
+## How it works
+
+The user-facing flow is five steps. The shape doesn't change between sessions — only the content does.
+
+```mermaid
+flowchart LR
+    A([Brief]) --> B([Theme])
+    B --> C([Font])
+    C --> D([Graphic])
+    D --> E[/Generate/]
+    E --> F([Editor])
+    F --> G([Export .pptx / .pdf])
+    F -.->|chat: 'rewrite slide 3'| F
+    F -.->|drag, recolor, swap layout| F
+
+    classDef step fill:#1f2937,stroke:#7c5cff,color:#fff,rx:8
+    classDef action fill:#7c5cff,stroke:#7c5cff,color:#fff,rx:8
+    class A,B,C,D,F,G step
+    class E action
+```
+
+Under the hood, the browser stays thin. Long-running and key-sensitive work happens on Next.js API routes; everything else (drag, edit, recolor, PDF render) runs entirely client-side.
+
+```mermaid
+flowchart TB
+    subgraph Browser
+      UI[Editor & landing UI]
+      PDF[jsPDF + html2canvas\nclient-side PDF render]
+      AUTH[Firebase Auth client]
+    end
+
+    subgraph "Next.js API routes"
+      GEN[/api/generate]
+      EDIT[/api/edit-slide]
+      EXPORT[/api/export]
+      ICON[/api/icon-search]
+    end
+
+    subgraph "External services"
+      GROQ[Groq · openai/gpt-oss-120b]
+      ICONIFY[Iconify · 200k+ icons]
+      FB_DB[Firebase Realtime DB]
+    end
+
+    UI -->|"prompt + theme + font + graphic"| GEN
+    UI -->|"per-slide instruction"| EDIT
+    UI -->|"deck JSON"| EXPORT
+    UI -->|"icon query"| ICON
+
+    GEN --> GROQ
+    EDIT --> GROQ
+    EDIT --> ICONIFY
+    EXPORT --> EXPORT_OUT([pptxgenjs builds .pptx])
+    ICON --> ICONIFY
+
+    UI -->|"deck JSON"| PDF
+    PDF --> PDF_OUT([Downloaded .pdf])
+
+    UI <-->|"sign in / events"| AUTH
+    AUTH --> FB_DB
+
+    classDef ext fill:#0f172a,stroke:#94a3b8,color:#fff,rx:6
+    classDef api fill:#7c5cff,stroke:#7c5cff,color:#fff,rx:6
+    classDef br fill:#1f2937,stroke:#facc15,color:#fff,rx:6
+    classDef out fill:#10b981,stroke:#10b981,color:#fff,rx:6
+    class UI,PDF,AUTH br
+    class GEN,EDIT,EXPORT,ICON api
+    class GROQ,ICONIFY,FB_DB ext
+    class EXPORT_OUT,PDF_OUT out
+```
+
+Three patterns hold the system together:
+
+1. **Single deck object** — the entire presentation lives in one typed `Deck` shape (`lib/types.ts`). Every page and every API route reads and writes it. No hidden state.
+2. **Pure-function rendering** — `SlideCanvas` is the same component used in the editor, the thumbnail rail, the present mode, and the off-screen PDF capture. One source of visual truth.
+3. **Server is a thin proxy** — the Next.js API routes only do what the browser cannot: hold the Groq key, hit Iconify for search, and run pptxgenjs for the binary `.pptx`. Everything else is client-side.
 
 ## Features
 
-- Three-step generator: prompt -> theme -> deck
-- Seven layouts: title hero, bullets, table, two-column, quote, section, references, closing
-- Density slider so you can choose how dense each slide should be
-- Eight preset themes plus a custom color and font picker
-- Per-slide AI chat that knows the deck topic, theme colors, and all slide titles
-- Drag-and-drop text boxes with PowerPoint-style font sizes (10, 12, 14, 16, ...)
-- Inline text editing on every box
+- Five-step generator: brief → theme → font → graphic → deck
+- Eight slide layouts: title hero, bullets, table, two-column, quote, section, references, closing
+- 32 themes paginated across four pages, plus full custom colors
+- 18 hand-picked Google Fonts with live previews
+- 22 background graphic styles, recolorable per deck
+- 36 in-house decorations (charts, infographics, layouts) plus 200k searchable icons via Iconify
+- Density slider so you can choose how packed each slide is
+- Per-slide AI chat that knows the deck topic, theme, all slide titles, and existing graphics
+- Drag-and-drop text boxes with PowerPoint-style font sizes
+- Inline text editing on every box (click, edit, blur to save)
+- Click any graphic to recolor it from a swatch picker
 - Image upload with free positioning and resize
-- Corner annotations the AI can place via natural language ("add team leader at bottom left in small font")
+- Corner annotations the AI can place via natural language
 - Optional references slide auto-inserted before the closing
-- Slide reorder, duplicate, insert, and delete from the thumbnail rail
-- Full-screen Present mode with PowerPoint shortcuts and smooth fades
-- Real .pptx and .pdf export, both pixel-mirroring the on-screen design
-- Firebase auth (email and Google) with stats events written to Realtime DB
+- Slide reorder, duplicate, insert, delete from the thumbnail rail
+- Full-screen Present mode with PowerPoint-style shortcuts (arrows, B for blank, type-to-jump)
+- Real `.pptx` and `.pdf` export, both pixel-mirroring the on-screen design
+- 10-second generate animation with progress steps so fast generations still feel deliberate
+- Firebase Auth (email and Google) with stats events written to Realtime DB
 - Multi-key Groq fallback so a rate limit on one key auto-switches to another
 
 ## Stack
 
 - Next.js 14 with the App Router
 - TypeScript and Tailwind
-- Groq SDK for inference (model: openai/gpt-oss-120b)
+- Groq SDK (model `openai/gpt-oss-120b`)
+- Iconify for icon search
 - pptxgenjs for PowerPoint export
 - jsPDF and html2canvas for PDF export
 - Firebase Auth and Realtime Database
-- Lucide for icons
+- Lucide for UI icons
 
 ## Setup
 
@@ -60,14 +143,14 @@ NEXT_PUBLIC_FIREBASE_APP_ID=...
 NEXT_PUBLIC_FIREBASE_DATABASE_URL=...
 ```
 
-The Groq key is server-only. The Firebase NEXT_PUBLIC_ values are client-side and public by Google's design, protected by Auth authorized domains and Realtime Database security rules.
+The Groq key is server-only. The Firebase `NEXT_PUBLIC_*` values are client-side and public by Google's design, protected by Auth authorized domains and Realtime Database security rules.
 
 ## Routes
 
-- `/` landing page with feature tour and live counters
-- `/auth` sign in / sign up (email and Google)
-- `/app` the generator and editor (requires sign-in)
-- `/privacy`, `/terms`, `/refund`, `/shipping`, `/contact` legal pages
+- `/` — landing page with feature tour and live counters
+- `/auth` — sign in / sign up (email and Google)
+- `/app` — the generator and editor (requires sign-in)
+- `/privacy`, `/terms`, `/refund`, `/shipping`, `/contact` — legal pages
 
 ## Project structure
 
@@ -80,11 +163,17 @@ app/
     generate/           creates a deck from a prompt
     edit-slide/         applies a single-slide AI patch
     export/             builds the .pptx file
+    icon-search/        proxy to Iconify search
 components/             SlideCanvas, DeckPreview, Presenter, etc.
 lib/
-  groq.ts               deck generation
+  groq.ts               deck generation prompt + parser
   groqClient.ts         multi-key Groq client with fallback
   layoutMath.ts         adaptive font sizes shared by preview and export
+  graphics.ts           background graphic catalog (22)
+  decorations.ts        in-deck decoration catalog (36)
+  iconify.ts            Iconify search + URL builder
+  fonts.ts              Google font presets (18)
+  themes.ts             theme catalog (32)
   pdfExport.ts          client-side PDF builder
   firebase.ts           Firebase initialization
   auth.ts               sign-in helpers
@@ -94,7 +183,7 @@ lib/
 
 ## Notes
 
-
+- Built by **Muhammad Izhan** — Computer Science undergraduate at RNS Institute of Technology, Bengaluru.
 - LinkedIn: https://www.linkedin.com/in/muhammad-izhan-a404752a6/
 - GitHub: https://github.com/izhan0102
 
