@@ -49,6 +49,10 @@ export type StoredDeck = {
   deck: Deck;
   theme: Theme;
   shareId?: string;
+  /** Set when the user has completed a successful Razorpay payment for
+   *  this deck. Sibling of `deck` so autosave (which rewrites `deck`)
+   *  cannot wipe it. */
+  paid?: { paidAt: number; method: "razorpay-redirect" };
 };
 
 export type DeckListItem = {
@@ -136,13 +140,27 @@ export async function loadDeck(uid: string, deckId: string): Promise<StoredDeck 
 /**
  * Mark a deck as paid. Called after the Razorpay redirect lands on
  * /payment-success — the redirect itself is the proof. Idempotent.
+ *
+ * `paid` lives at the row level (sibling of `deck`) so the regular
+ * autosave that rewrites `deck` cannot wipe it out.
  */
 export async function markDeckPaid(uid: string, deckId: string): Promise<void> {
   const db = getFirebaseDb();
   if (!db) throw new Error("Cloud sync unavailable.");
-  await update(ref(db, `decks/${uid}/${deckId}/deck`), {
+  await update(ref(db, `decks/${uid}/${deckId}`), {
     paid: { paidAt: Date.now(), method: "razorpay-redirect" },
   });
+}
+
+/** Read just the paid metadata for a deck. */
+export async function loadDeckPaid(
+  uid: string, deckId: string,
+): Promise<StoredDeck["paid"] | undefined> {
+  const db = getFirebaseDb();
+  if (!db) return undefined;
+  const snap = await get(child(ref(db), `decks/${uid}/${deckId}/paid`));
+  if (!snap.exists()) return undefined;
+  return snap.val();
 }
 
 export async function deleteDeck(uid: string, deckId: string): Promise<void> {

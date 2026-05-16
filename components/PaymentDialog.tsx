@@ -79,7 +79,7 @@ export default function PaymentDialog({
                   DeckFlow Premium
                 </div>
                 <div className="mt-0.5 text-base font-semibold text-white">
-                  Unlock the .pptx download
+                  Unlock this deck's downloads
                 </div>
               </div>
             </div>
@@ -120,11 +120,11 @@ export default function PaymentDialog({
           <ul className="mb-4 space-y-1.5 text-[11px] text-white/65">
             <li className="flex items-center gap-2">
               <Crown size={11} className="text-amber-300" />
-              Editable Microsoft PowerPoint file
+              Editable Microsoft PowerPoint (.pptx) download
             </li>
             <li className="flex items-center gap-2">
               <Crown size={11} className="text-amber-300" />
-              Works in PowerPoint, Keynote, and Google Slides
+              High-quality PDF download
             </li>
             <li className="flex items-center gap-2">
               <Crown size={11} className="text-amber-300" />

@@ -19,7 +19,7 @@ import { exportSlidesToPdf } from "@/lib/pdfExport";
 import { trackEvent } from "@/lib/stats";
 import type { ExportFormat } from "./ExportFormatPicker";
 import { getDecoration } from "@/lib/decorations";
-import { saveDeck, publishDeck, unpublishDeck } from "@/lib/decks";
+import { saveDeck, publishDeck, unpublishDeck, loadDeckPaid } from "@/lib/decks";
 import type { AppUser } from "@/lib/auth";
 
 type Props = {
@@ -45,6 +45,24 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
   const [sharing, setSharing] = useState(false);
   const [themeTransferOpen, setThemeTransferOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paid, setPaid] = useState(false);
+  // Hydrate the paid flag any time the deck/user changes. Polls again
+  // when the user comes back to the tab so a payment that just landed
+  // unlocks without a manual refresh.
+  useEffect(() => {
+    if (!user || !deckId) { setPaid(false); return; }
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const p = await loadDeckPaid(user.uid, deckId);
+        if (!cancelled) setPaid(!!p?.paidAt);
+      } catch { /* ignore */ }
+    };
+    refresh();
+    const onFocus = () => refresh();
+    window.addEventListener("focus", onFocus);
+    return () => { cancelled = true; window.removeEventListener("focus", onFocus); };
+  }, [user, deckId]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hiddenRef = useRef<HiddenSlidesHandle>(null);
 
@@ -194,9 +212,9 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
   };
 
   const onExport = async (format: ExportFormat) => {
-    // PPTX is a paid export. Gate behind the payment dialog if the deck
-    // hasn't been unlocked. PDF stays free.
-    if (format === "pptx" && !deck.paid) {
+    // Both formats are paid. Gate behind the payment dialog if the deck
+    // hasn't been unlocked yet.
+    if (!paid) {
       setPaymentOpen(true);
       return;
     }
