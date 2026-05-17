@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, FileText, Plus, Trash2 } from "lucide-react";
 import { onAuthStateChange, type AppUser } from "@/lib/auth";
 import { watchDeckList, deleteDeck, type DeckListItem } from "@/lib/decks";
+import DeckThumbnail from "@/components/DeckThumbnail";
 
 export default function MyDecksPage() {
   const router = useRouter();
@@ -72,8 +73,8 @@ export default function MyDecksPage() {
                 key={d.id}
                 className="group flex flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-white/30 hover:bg-white/[0.05]"
               >
-                <div className="mb-3 flex h-32 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-transparent">
-                  <FileText size={28} className="text-white/30" />
+                <div className="mb-3">
+                  <DeckThumbnail item={d} />
                 </div>
                 <h3 className="line-clamp-2 text-sm font-semibold text-white">{d.title}</h3>
                 {d.subtitle && (

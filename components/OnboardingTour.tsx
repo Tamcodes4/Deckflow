@@ -14,9 +14,9 @@ import { ArrowRight, Sparkles, X } from "lucide-react";
  *   - If a step's target is missing, the tooltip centers on screen.
  */
 
-const STORAGE_KEY = "deckflow_onboarding_v2";
+const STORAGE_KEY = "deckflow_onboarding_v3";
 
-type StepId = "my-decks" | "templates" | "brief" | "continue" | "generate";
+type StepId = "start-from-scratch" | "decks-list" | "my-decks-nav" | "upgrade-info";
 
 type Step = {
   id: StepId;
@@ -30,39 +30,11 @@ type Step = {
 
 const ALL_STEPS: Step[] = [
   {
-    id: "my-decks",
-    title: "Your saved decks live here",
-    body: "Every deck you create is auto-saved to your account. Open them later from any device, share with a public link, or pick up where you left off.",
-    target: "my-decks",
+    id: "start-from-scratch",
+    title: "Make your first deck",
+    body: "Start with a brief — a sentence or two about the topic — and DeckFlow generates a polished deck in about ten seconds. Edit anything inline once it's ready.",
+    target: "start-from-scratch",
     placement: "bottom",
-  },
-  {
-    id: "templates",
-    title: "Start from a designed template",
-    body: "36 ready-made styles — investor pitches, lecture decks, editorial features. Picking one sets the theme, font, graphic, and look-and-feel in one click.",
-    target: "templates",
-    placement: "bottom",
-  },
-  {
-    id: "brief",
-    title: "Tell DeckFlow about the deck",
-    body: "A sentence or two is enough. The AI fills in the slides. Audience and tone are optional but they help fine-tune the voice.",
-    target: "brief",
-    placement: "bottom",
-  },
-  {
-    id: "continue",
-    title: "Customize the look",
-    body: "Walk through theme, font, and background graphic — or skip the wizard if you've picked a template. Everything is editable later.",
-    target: "continue",
-    placement: "left",
-  },
-  {
-    id: "generate",
-    title: "Generate, then make it yours",
-    body: "Ten seconds to a polished deck. Click any text to rewrite. Drag boxes. Right-click for the element menu. Export as .pptx or .pdf when you're done.",
-    target: "continue",
-    placement: "left",
   },
 ];
 

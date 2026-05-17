@@ -10,15 +10,16 @@ import DeckPreview from "@/components/DeckPreview";
 import GenerateOverlay from "@/components/GenerateOverlay";
 import TemplateGallery from "@/components/TemplateGallery";
 import OnboardingTour from "@/components/OnboardingTour";
+import Dashboard from "@/components/Dashboard";
 import { PRESET_THEMES, getTheme, type Theme } from "@/lib/themes";
 import type { Deck, ContentDensity } from "@/lib/types";
 import { applyTemplateToSlide, type TemplateVariantDefaults } from "@/lib/templates";
 import { createDeck, loadDeck } from "@/lib/decks";
-import { getCurrentUser, isLoggedIn, logout, onAuthStateChange, type AppUser } from "@/lib/auth";
+import { logout, onAuthStateChange, type AppUser } from "@/lib/auth";
 import { trackEvent } from "@/lib/stats";
 import { LogOut } from "lucide-react";
 
-type Step = "prompt" | "theme" | "font" | "graphic" | "deck";
+type Step = "dashboard" | "prompt" | "theme" | "font" | "graphic" | "deck";
 
 // useSearchParams() forces this route to render on each request rather than
 // being prerendered at build time. Without this, the build complains that
@@ -61,7 +62,7 @@ function PageInner() {
     return () => { cancelled = true; unsubscribe(); };
   }, [router]);
 
-  const [step, setStep] = useState<Step>("prompt");
+  const [step, setStep] = useState<Step>("dashboard");
   const [prompt, setPrompt] = useState("");
   const [slideCount, setSlideCount] = useState(8);
   const [audience, setAudience] = useState("");
@@ -187,9 +188,16 @@ function PageInner() {
   };
 
   const restart = () => {
-    setStep("prompt");
+    setStep("dashboard");
     setDeck(null);
     setDeckId(null);
+    // Drop the ?id from the URL on restart so refreshing doesn't re-open
+    // the deck the user just left.
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("id");
+      window.history.replaceState({}, "", url.toString());
+    } catch { /* ignore */ }
   };
 
   if (!authReady) {
@@ -201,20 +209,46 @@ function PageInner() {
   }
 
   const isDeckStep = step === "deck";
+  const isDashboard = step === "dashboard";
+  const fullBleed = isDeckStep || isDashboard;
+
+  // Dashboard owns its own layout; render it standalone.
+  if (isDashboard && user) {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black text-white">
+        <Dashboard
+          user={user}
+          onStartFromScratch={() => setStep("prompt")}
+          onSignOut={async () => { await logout(); router.replace("/"); }}
+        />
+
+        {/* First-visit walkthrough still useful here. Self-disables after one show. */}
+        <OnboardingTour enabled />
+      </main>
+    );
+  }
 
   return (
     <main
       className={`min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black ${
-        isDeckStep ? "px-4 py-6 sm:px-8" : "px-4 py-10 sm:px-8"
+        fullBleed ? "px-4 py-6 sm:px-8" : "px-4 py-10 sm:px-8"
       }`}
     >
-      {!isDeckStep && (
+      {!fullBleed && (
         <header className="mx-auto mb-12 flex max-w-6xl items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <span className="border-b-2 border-white pb-0.5 font-semibold tracking-tight">
-              DeckFlow
-            </span>
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/" className="flex items-center">
+              <span className="border-b-2 border-white pb-0.5 font-semibold tracking-tight">
+                DeckFlow
+              </span>
+            </Link>
+            <button
+              onClick={() => setStep("dashboard")}
+              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/65 hover:bg-white/10 hover:text-white"
+            >
+              ← Dashboard
+            </button>
+          </div>
           <div className="flex items-center gap-4">
             <Stepper step={step} />
             {user && (
@@ -336,7 +370,7 @@ function PageInner() {
       />
 
       {/* First-visit walkthrough. Self-disables after one show. */}
-      <OnboardingTour enabled={step === "prompt"} />
+      <OnboardingTour enabled={false} />
     </main>
   );
 }

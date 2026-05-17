@@ -62,6 +62,13 @@ export type DeckListItem = {
   slides: number;
   updatedAt: number;
   shareId?: string;
+  /** Full first slide + theme/graphic context, used to render a real
+   *  preview thumbnail in dashboards and the My Decks list. */
+  firstSlide?: import("./types").Slide;
+  theme?: Theme;
+  graphic?: string;
+  graphicAccent?: string;
+  fontId?: string;
 };
 
 function rid(): string {
@@ -188,6 +195,11 @@ export function watchDeckList(
       slides: row?.meta?.slides || 0,
       updatedAt: typeof row?.meta?.updatedAt === "number" ? row.meta.updatedAt : 0,
       shareId: row?.shareId,
+      firstSlide: Array.isArray(row?.deck?.slides) ? row.deck.slides[0] : undefined,
+      theme: row?.theme,
+      graphic: row?.deck?.graphic,
+      graphicAccent: row?.deck?.graphicAccent,
+      fontId: row?.deck?.fontId,
     }));
     items.sort((a, b) => b.updatedAt - a.updatedAt);
     cb(items);
