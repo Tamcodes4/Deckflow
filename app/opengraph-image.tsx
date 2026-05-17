@@ -10,7 +10,7 @@ import { ImageResponse } from "next/og";
  */
 
 export const runtime = "edge";
-export const alt = "DeckFlow — Presentations from a prompt";
+export const alt = "EZdeck — Presentations from a prompt";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -23,7 +23,7 @@ export default async function OG() {
           height: "100%",
           display: "flex",
           background:
-            "radial-gradient(60% 50% at 30% 25%, rgba(124,92,255,0.32), transparent 70%), radial-gradient(50% 40% at 80% 80%, rgba(52,211,153,0.18), transparent 70%), #050507",
+            "radial-gradient(60% 50% at 30% 25%, rgba(124,92,255,0.32), transparent 70%), radial-gradient(50% 40% at 80% 80%, rgba(34,211,238,0.18), transparent 70%), #050507",
           color: "#fff",
           fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
           padding: 64,
@@ -37,24 +37,33 @@ export default async function OG() {
             left: 64,
             display: "flex",
             alignItems: "center",
-            gap: 10,
-            padding: "8px 14px",
-            border: "1px solid rgba(255,255,255,0.16)",
-            background: "rgba(255,255,255,0.05)",
-            borderRadius: 999,
-            fontSize: 18,
-            color: "rgba(255,255,255,0.85)",
+            gap: 12,
+            fontSize: 22,
+            color: "#fff",
+            fontWeight: 700,
+            letterSpacing: -0.3,
           }}
         >
-          <span
+          <div
             style={{
-              width: 10,
-              height: 10,
-              borderRadius: "50%",
-              background: "#c4b5fd",
+              width: 38,
+              height: 38,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 10,
+              background:
+                "linear-gradient(135deg, #7C5CFF 0%, #9D5CFF 55%, #22D3EE 100%)",
+              color: "white",
+              fontSize: 18,
+              fontWeight: 800,
             }}
-          />
-          DeckFlow
+          >
+            EZ
+          </div>
+          <span>
+            EZ<span style={{ opacity: 0.85 }}>deck</span>
+          </span>
         </div>
 
         {/* Left: copy */}
@@ -119,7 +128,6 @@ export default async function OG() {
             color: "#0F172A",
           }}
         >
-          {/* Side rail */}
           <div
             style={{
               position: "absolute",
@@ -179,7 +187,7 @@ export default async function OG() {
           <span>·</span>
           <span>Open source</span>
           <span>·</span>
-          <span>deckflow-pi.vercel.app</span>
+          <span>ezdeck.app</span>
         </div>
       </div>
     ),

@@ -134,7 +134,7 @@ export async function loginWithGoogle(): Promise<AppUser> {
   const auth = getFirebaseAuth();
   if (!auth) {
     // Local-only stub for dev without firebase env vars.
-    const fake: AppUser = { uid: "local_google_demo", email: "you@example.com", name: "DeckFlow user", provider: "local" };
+    const fake: AppUser = { uid: "local_google_demo", email: "you@example.com", name: "EZdeck user", provider: "local" };
     writeLocal(fake);
     return fake;
   }

@@ -76,7 +76,7 @@ export default function PaymentDialog({
               </div>
               <div>
                 <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-200/90">
-                  DeckFlow Premium
+                  EZdeck Premium
                 </div>
                 <div className="mt-0.5 text-base font-semibold text-white">
                   Unlock this deck's downloads

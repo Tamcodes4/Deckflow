@@ -1,8 +1,9 @@
 import { ImageResponse } from "next/og";
 
 /**
- * Dynamic favicon. Renders a 32×32 violet rounded square with the
- * DeckFlow "D" mark. Picked up automatically by Next.js as the site icon.
+ * Dynamic favicon. Renders an EZ-mark tile that matches the brand logo
+ * — violet→cyan gradient, rounded square, "EZ" stacked. Picked up
+ * automatically by Next.js as the site icon.
  */
 
 export const runtime = "edge";
@@ -19,15 +20,17 @@ export default function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #7C5CFF 0%, #A78BFA 100%)",
+          background:
+            "linear-gradient(135deg, #7C5CFF 0%, #9D5CFF 55%, #22D3EE 100%)",
           color: "white",
-          fontSize: 22,
+          fontSize: 16,
           fontWeight: 800,
           fontFamily: "system-ui, -apple-system, sans-serif",
+          letterSpacing: -0.5,
           borderRadius: 7,
         }}
       >
-        D
+        EZ
       </div>
     ),
     size,

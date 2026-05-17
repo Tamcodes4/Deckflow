@@ -4,7 +4,7 @@ import type { Deck, Slide, UploadedImage } from "@/lib/types";
 import type { Theme } from "@/lib/themes";
 import { PRESET_THEMES } from "@/lib/themes";
 import {
-  Check, ChevronLeft, ChevronRight, Image as ImageIcon, Link as LinkIcon, Play, RotateCcw, Shapes,
+  Check, ChevronLeft, ChevronRight, Image as ImageIcon, Link as LinkIcon, Play, RotateCcw, Shapes, Undo2,
 } from "lucide-react";
 import SlideCanvas from "./SlideCanvas";
 import DesignerPanel from "./DesignerPanel";
@@ -46,6 +46,56 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
   const [themeTransferOpen, setThemeTransferOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paid, setPaid] = useState(false);
+  // Undo: keep up to N recent deck snapshots so we can roll back accidental
+  // edits, AI rewrites that went wrong, or auto-saves that wiped something.
+  // We store full Deck objects (small, JSON-friendly) and skip pushing on
+  // every keystroke by debouncing in the saver, not here.
+  const historyRef = useRef<Deck[]>([]);
+  const skipNextHistoryPushRef = useRef(false);
+  const HISTORY_LIMIT = 30;
+  const [canUndo, setCanUndo] = useState(false);
+
+  // Push current deck onto history stack whenever it changes — except for
+  // changes that came from popping history itself.
+  useEffect(() => {
+    if (skipNextHistoryPushRef.current) {
+      skipNextHistoryPushRef.current = false;
+      return;
+    }
+    const hist = historyRef.current;
+    const last = hist[hist.length - 1];
+    // Avoid pushing identical states.
+    if (last && JSON.stringify(last) === JSON.stringify(deck)) return;
+    hist.push(deck);
+    while (hist.length > HISTORY_LIMIT) hist.shift();
+    setCanUndo(hist.length > 1);
+  }, [deck]);
+
+  const undo = () => {
+    const hist = historyRef.current;
+    if (hist.length < 2) return;
+    // Pop current state; the new "last" is the previous state.
+    hist.pop();
+    const prev = hist[hist.length - 1];
+    if (!prev) return;
+    skipNextHistoryPushRef.current = true;
+    setDeck(prev);
+    setCanUndo(hist.length > 1);
+  };
+
+  // Ctrl/Cmd+Z to undo, ignoring when the user is typing in an editable.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.key.toLowerCase() !== "z") return;
+      const tgt = e.target as HTMLElement;
+      if (tgt && (tgt.isContentEditable || /input|textarea|select/i.test(tgt.tagName))) return;
+      e.preventDefault();
+      undo();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   // Hydrate the paid flag any time the deck/user changes. Polls again
   // when the user comes back to the tab so a payment that just landed
   // unlocks without a manual refresh.
@@ -303,6 +353,14 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
             title="Add an image to this slide"
           >
             <ImageIcon size={14} /> Add image
+          </button>
+          <button
+            onClick={undo}
+            disabled={!canUndo}
+            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Undo last change (Ctrl/Cmd+Z)"
+          >
+            <Undo2 size={14} /> Undo
           </button>
           <button
             onClick={() => setDecorOpen(true)}

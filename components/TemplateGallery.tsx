@@ -231,7 +231,7 @@ function TemplatePreview({ template, theme }: { template: DeckTemplate; theme: T
         fontSize: 9, letterSpacing: "0.22em",
         color: muted, opacity: showNumbered ? 0 : 0.65, fontWeight: 700,
       }}>
-        DECKFLOW
+        EZDECK
       </div>
 
       {/* Content stack — vertically centered */}

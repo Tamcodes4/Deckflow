@@ -1,7 +1,7 @@
 import LegalShell from "@/components/legal/LegalShell";
 import { LEGAL } from "@/lib/legal";
 
-export const metadata = { title: "Contact Us · DeckFlow" };
+export const metadata = { title: "Contact Us · EZdeck" };
 
 export default function ContactPage() {
   return (

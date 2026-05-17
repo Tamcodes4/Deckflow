@@ -6,6 +6,7 @@ import { ArrowLeft, FileText, Plus, Trash2 } from "lucide-react";
 import { onAuthStateChange, type AppUser } from "@/lib/auth";
 import { watchDeckList, deleteDeck, type DeckListItem } from "@/lib/decks";
 import DeckThumbnail from "@/components/DeckThumbnail";
+import Logo from "@/components/Logo";
 
 export default function MyDecksPage() {
   const router = useRouter();
@@ -40,9 +41,7 @@ export default function MyDecksPage() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black px-4 py-10 sm:px-8">
       <header className="mx-auto mb-10 flex max-w-5xl items-center justify-between">
-        <Link href="/" className="flex items-center">
-          <span className="border-b-2 border-white pb-0.5 font-semibold tracking-tight">DeckFlow</span>
-        </Link>
+        <Logo size="md" />
         <Link
           href="/app"
           className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90"
@@ -67,21 +66,23 @@ export default function MyDecksPage() {
         {decks.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {decks.map((d) => (
               <article
                 key={d.id}
-                className="group flex flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-white/30 hover:bg-white/[0.05]"
+                className="group flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-white/30 hover:bg-white/[0.05]"
               >
                 <div className="mb-3">
                   <DeckThumbnail item={d} />
                 </div>
-                <h3 className="line-clamp-2 text-sm font-semibold text-white">{d.title}</h3>
-                {d.subtitle && (
-                  <p className="mt-1 line-clamp-2 text-xs text-white/55">{d.subtitle}</p>
-                )}
-                <div className="mt-3 flex items-center justify-between text-[11px] text-white/50">
-                  <span>{d.slides} slides</span>
+                <div className="min-h-[64px]">
+                  <h3 className="line-clamp-2 text-sm font-semibold text-white">{d.title}</h3>
+                  {d.subtitle && (
+                    <p className="mt-1 line-clamp-1 text-xs text-white/55">{d.subtitle}</p>
+                  )}
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] text-white/50">
+                  <span>{d.slides} slide{d.slides === 1 ? "" : "s"}</span>
                   <span>{formatRelative(d.updatedAt)}</span>
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-2">

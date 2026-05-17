@@ -1,19 +1,9 @@
 "use client";
-import type { Slide, SlideLayout, UploadedImage, Deck } from "@/lib/types";
+import type { Slide, UploadedImage, Deck } from "@/lib/types";
 import type { Theme } from "@/lib/themes";
-import { Eye, Layout, Palette, Shapes, Trash2 } from "lucide-react";
+import { Eye, Palette, Shapes, Trash2 } from "lucide-react";
 import { getDecoration } from "@/lib/decorations";
 import StyleVariants from "./StyleVariants";
-
-const LAYOUT_OPTIONS: { id: SlideLayout; label: string }[] = [
-  { id: "title-hero", label: "Title hero" },
-  { id: "bullets",    label: "Bullets" },
-  { id: "two-column", label: "Two columns" },
-  { id: "table",      label: "Table" },
-  { id: "quote",      label: "Quote" },
-  { id: "section",    label: "Section divider" },
-  { id: "closing",    label: "Closing" },
-];
 
 const ELEMENTS: { id: keyof NonNullable<Slide["elementHidden"]>; label: string }[] = [
   { id: "title",    label: "Title" },
@@ -78,30 +68,6 @@ export default function DesignerPanel({
           });
         }}
       />
-
-      <div>
-        <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wider text-white/50">
-          <Layout size={12} /> Layout
-        </div>
-        <div className="grid grid-cols-1 gap-1.5">
-          {LAYOUT_OPTIONS.map((opt) => {
-            const active = slide.layout === opt.id;
-            return (
-              <button
-                key={opt.id}
-                onClick={() => onUpdate({ layout: opt.id })}
-                className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
-                  active
-                    ? "border-white/60 bg-white/10 text-white"
-                    : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
-                }`}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
       <div>
         <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wider text-white/50">

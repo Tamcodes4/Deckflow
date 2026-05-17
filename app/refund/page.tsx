@@ -1,7 +1,7 @@
 import LegalShell from "@/components/legal/LegalShell";
 import { LEGAL } from "@/lib/legal";
 
-export const metadata = { title: "Refund & Cancellation Policy · DeckFlow" };
+export const metadata = { title: "Refund & Cancellation Policy · EZdeck" };
 
 export default function RefundPage() {
   return (
@@ -10,7 +10,7 @@ export default function RefundPage() {
 
       <p>
         This Refund & Cancellation Policy explains how{" "}
-        {LEGAL.BUSINESS_NAME} ("DeckFlow", "we") handles cancellations,
+        {LEGAL.BUSINESS_NAME} ("EZdeck", "we") handles cancellations,
         refunds, and chargebacks for downloads purchased on{" "}
         {LEGAL.DOMAIN}. It supplements our Terms & Conditions and is
         required by our payment processor, Razorpay.
@@ -18,7 +18,7 @@ export default function RefundPage() {
 
       <h2>1. Pricing Model</h2>
       <ul>
-        <li>Generation, editing, and previewing decks in DeckFlow is free.</li>
+        <li>Generation, editing, and previewing decks in EZdeck is free.</li>
         <li>Downloading a deck as a Microsoft PowerPoint (<code>.pptx</code>) file is a flat fee of INR {LEGAL.PRICE_PER_DECK_INR} per deck, regardless of how many slides the deck contains. The total is shown for confirmation before payment.</li>
         <li>Payments are one-time and per-deck. There are no subscriptions, no auto-pay, no recurring charges.</li>
       </ul>

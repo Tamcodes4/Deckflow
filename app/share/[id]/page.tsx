@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import SlideCanvas from "@/components/SlideCanvas";
+import Logo from "@/components/Logo";
 import type { Deck } from "@/lib/types";
 import type { Theme } from "@/lib/themes";
 import { loadSharedDeck } from "@/lib/decks";
@@ -50,7 +51,7 @@ export default function ShareViewer({ params }: { params: { id: string } }) {
             This link may have been removed or never existed.
           </p>
           <Link href="/" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90">
-            Go to DeckFlow
+            Go to EZdeck
           </Link>
         </div>
       </main>
@@ -73,11 +74,7 @@ export default function ShareViewer({ params }: { params: { id: string } }) {
   return (
     <main className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black px-4 py-6 sm:px-8">
       <header className="mx-auto mb-6 flex max-w-6xl items-center justify-between">
-        <Link href="/" className="flex items-center">
-          <span className="border-b-2 border-white pb-0.5 text-sm font-semibold tracking-tight text-white">
-            DeckFlow
-          </span>
-        </Link>
+        <Logo size="sm" />
         <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/65">
           Shared deck · read only
         </div>
@@ -122,7 +119,7 @@ export default function ShareViewer({ params }: { params: { id: string } }) {
         <p className="mt-8 text-center text-xs text-white/45">
           Made with{" "}
           <Link href="/" className="text-white/85 underline-offset-2 hover:underline">
-            DeckFlow
+            EZdeck
           </Link>
           {" "}— AI deck builder. Free to try.
         </p>

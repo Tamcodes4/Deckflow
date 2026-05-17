@@ -9,6 +9,7 @@ import { trackEvent } from "@/lib/stats";
 import {
   ArrowRight, Check, ChevronDown, Loader2, Lock, Mail, Sparkles, User,
 } from "lucide-react";
+import Logo from "@/components/Logo";
 
 export default function AuthPage() {
   return (
@@ -100,14 +101,7 @@ function AuthInner() {
         <section className="flex min-h-screen flex-col px-6 py-8 sm:px-10 lg:px-14">
           {/* Top: brand + (mobile) toggle to right pane */}
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2">
-              <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-violet-400 to-fuchsia-500 text-[11px] font-bold text-white">
-                D
-              </span>
-              <span className="text-sm font-semibold tracking-tight">
-                DeckFlow
-              </span>
-            </Link>
+            <Logo size="md" />
           </div>
 
           {/* Center: auth panel */}
@@ -238,7 +232,7 @@ function AuthInner() {
           {/* Footer: legal */}
           <div className="text-center">
             <p className="text-[11px] text-white/35">
-              By continuing you agree to DeckFlow's{" "}
+              By continuing you agree to EZdeck's{" "}
               <Link href="/terms" className="underline-offset-2 hover:text-white/70 hover:underline">terms</Link>
               {" "}and{" "}
               <Link href="/privacy" className="underline-offset-2 hover:text-white/70 hover:underline">privacy policy</Link>.

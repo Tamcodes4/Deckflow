@@ -59,11 +59,23 @@ export function subtitleSize(text: string | undefined, layout: Slide["layout"], 
 export function bulletSize(count: number, slide?: Slide): number {
   const explicit = explicitFontSize(slide, "bullets");
   if (explicit) return explicit;
+  // Step 1: pick a base from bullet count.
   let base: number;
   if (count <= 3) base = 22;
-  else if (count <= 4) base = 20;
-  else if (count <= 5) base = 18;
-  else base = 16;
+  else if (count <= 4) base = 19;
+  else if (count <= 5) base = 17;
+  else base = 15;
+
+  // Step 2: shrink further if any bullet is long. Stops content from
+  // overflowing the slide canvas in detailed/comprehensive density.
+  const longest = (slide?.bullets || []).reduce(
+    (m, b) => Math.max(m, (b || "").length),
+    0,
+  );
+  if (longest > 160) base = Math.min(base, 14);
+  else if (longest > 120) base = Math.min(base, 16);
+  else if (longest > 90)  base = Math.min(base, 17);
+
   return Math.round(base * bScale(slide) * elScale(slide, "bullets"));
 }
 
@@ -82,7 +94,12 @@ export function quoteSize(text: string, slide?: Slide): number {
 export function bodySize(slide?: Slide): number {
   const explicit = explicitFontSize(slide, "body");
   if (explicit) return explicit;
-  return Math.round(18 * bScale(slide) * elScale(slide, "body"));
+  // Shrink if the body is long — keeps quote / section text in-bounds.
+  const len = (slide?.body || slide?.title || "").length;
+  let base = 18;
+  if (len > 240) base = 14;
+  else if (len > 160) base = 16;
+  return Math.round(base * bScale(slide) * elScale(slide, "body"));
 }
 
 export function tableFontSize(rows: number, cols: number, slide?: Slide): number {

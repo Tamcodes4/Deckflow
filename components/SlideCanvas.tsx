@@ -274,7 +274,11 @@ function Movable({
           onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
           style={{
             position: "absolute",
-            top: pt(-6), right: pt(-22),
+            // Sit INSIDE the element box (top-right corner). Putting this
+            // outside (right: -22) gets clipped by the slide canvas's
+            // `overflow: hidden`, especially for elements near the right
+            // edge of the slide.
+            top: pt(2), right: pt(2),
             width: pt(20), height: pt(20),
             display: "grid", placeItems: "center",
             background: "rgba(20,20,22,0.85)",
@@ -286,6 +290,7 @@ function Movable({
             opacity: showControls ? 1 : 0,
             transition: "opacity 120ms ease",
             pointerEvents: showControls ? "auto" : "none",
+            zIndex: 10,
           }}
           aria-label="Element options"
         >
@@ -299,7 +304,9 @@ function Movable({
           onPointerDown={(e) => e.stopPropagation()}
           style={{
             position: "absolute",
-            top: pt(20), right: pt(-22),
+            // Drop the menu just below the ⋮ button, anchored to the
+            // element's right edge so it stays inside the slide.
+            top: pt(26), right: pt(2),
             background: "rgba(20,20,22,0.97)",
             color: "#fff",
             border: "1px solid rgba(255,255,255,0.12)",
@@ -493,7 +500,7 @@ function TitleHeroAsymmetric({ slide, theme, deckTitle, interactive, onUpdate, c
         position: "absolute", left: inches(0.6), bottom: inches(0.6),
         fontSize: pt(10), color: theme.bg, opacity: 0.85, letterSpacing: "0.18em", fontWeight: 600,
       }}>
-        DECKFLOW
+        EZDECK
       </div>
     </>
   );
@@ -1839,12 +1846,12 @@ function ClosingQA({ slide, theme, interactive, onUpdate, canvasRef }: any) {
           <EditableText value={slide.title || "Questions"} interactive={interactive} onCommit={(v) => onUpdate?.({ title: v })}/>
         </div>
       </Movable>
-      {(slide.subtitle || interactive) && (
+      {slide.subtitle && (
         <Movable id="subtitle" slide={slide} theme={theme} interactive={interactive} onUpdate={onUpdate} canvasRef={canvasRef}
           baseStyle={{ position: "absolute", left: "30%", right: "8%", top: "60%" }}
         >
           <div style={{ fontSize: pt(15), color: theme.muted, lineHeight: 1.4 }}>
-            <EditableText value={slide.subtitle || "Open the floor for discussion."} interactive={interactive} onCommit={(v) => onUpdate?.({ subtitle: v })}/>
+            <EditableText value={slide.subtitle} interactive={interactive} onCommit={(v) => onUpdate?.({ subtitle: v })}/>
           </div>
         </Movable>
       )}
@@ -1853,7 +1860,6 @@ function ClosingQA({ slide, theme, interactive, onUpdate, canvasRef }: any) {
 }
 
 function ClosingContact({ slide, theme, interactive, onUpdate, canvasRef }: any) {
-  const subtitle = slide.subtitle || (interactive ? "name@example.com\n@yourhandle\nwww.example.com" : "");
   return (
     <>
       <Movable id="title" slide={slide} theme={theme} interactive={interactive} onUpdate={onUpdate} canvasRef={canvasRef}
@@ -1870,18 +1876,20 @@ function ClosingContact({ slide, theme, interactive, onUpdate, canvasRef }: any)
         position: "absolute", left: "10%", top: "48%", width: pt(40), height: pt(3),
         background: theme.accent,
       }}/>
-      <Movable id="subtitle" slide={slide} theme={theme} interactive={interactive} onUpdate={onUpdate} canvasRef={canvasRef}
-        baseStyle={{ position: "absolute", left: "10%", right: "10%", top: "55%" }}
-      >
-        <div style={{ fontSize: pt(15), color: theme.fg, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
-          <EditableText
-            value={subtitle}
-            multiline
-            interactive={interactive}
-            onCommit={(v) => onUpdate?.({ subtitle: v })}
-          />
-        </div>
-      </Movable>
+      {slide.subtitle && (
+        <Movable id="subtitle" slide={slide} theme={theme} interactive={interactive} onUpdate={onUpdate} canvasRef={canvasRef}
+          baseStyle={{ position: "absolute", left: "10%", right: "10%", top: "55%" }}
+        >
+          <div style={{ fontSize: pt(15), color: theme.fg, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+            <EditableText
+              value={slide.subtitle}
+              multiline
+              interactive={interactive}
+              onCommit={(v) => onUpdate?.({ subtitle: v })}
+            />
+          </div>
+        </Movable>
+      )}
     </>
   );
 }
@@ -1900,16 +1908,16 @@ function ClosingCta({ slide, theme, interactive, onUpdate, canvasRef }: any) {
           <EditableText value={slide.title || "Let's go"} interactive={interactive} onCommit={(v) => onUpdate?.({ title: v })}/>
         </div>
       </Movable>
-      {(slide.subtitle || interactive) && (
+      {slide.subtitle && (
         <Movable id="subtitle" slide={slide} theme={theme} interactive={interactive} onUpdate={onUpdate} canvasRef={canvasRef}
           baseStyle={{ position: "absolute", left: "12%", right: "12%", top: "55%", textAlign: "center" }}
         >
           <div style={{ fontSize: pt(15), color: theme.bg, opacity: 0.85, lineHeight: 1.4 }}>
-            <EditableText value={slide.subtitle || "Take the next step."} interactive={interactive} onCommit={(v) => onUpdate?.({ subtitle: v })}/>
+            <EditableText value={slide.subtitle} interactive={interactive} onCommit={(v) => onUpdate?.({ subtitle: v })}/>
           </div>
         </Movable>
       )}
-      {(slide.kicker || interactive) && (
+      {slide.kicker && (
         <div style={{
           position: "absolute", left: "50%", transform: "translateX(-50%)", top: "70%",
           padding: `${pt(10)} ${pt(20)}`,
@@ -1917,7 +1925,7 @@ function ClosingCta({ slide, theme, interactive, onUpdate, canvasRef }: any) {
           fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase",
           borderRadius: pt(6), fontSize: pt(12),
         }}>
-          <EditableText value={slide.kicker || "Get in touch →"} interactive={interactive} onCommit={(v) => onUpdate?.({ kicker: v })}/>
+          <EditableText value={slide.kicker} interactive={interactive} onCommit={(v) => onUpdate?.({ kicker: v })}/>
         </div>
       )}
     </div>

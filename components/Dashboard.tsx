@@ -9,6 +9,7 @@ import { deleteDeck, watchDeckList, type DeckListItem } from "@/lib/decks";
 import { getFirebaseDb } from "@/lib/firebase";
 import { onValue, ref } from "firebase/database";
 import DeckThumbnail from "./DeckThumbnail";
+import Logo from "./Logo";
 
 /**
  * Dashboard view shown when the user lands on /app.
@@ -62,12 +63,7 @@ export default function Dashboard({ user, onStartFromScratch, onSignOut }: Props
     <div className="min-h-screen lg:pl-[260px]">
       {/* ============== Sidebar ============== */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[260px] flex-col border-r border-white/10 bg-zinc-950/80 p-5 backdrop-blur lg:flex">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-violet-400 to-fuchsia-500 text-[11px] font-bold text-white">
-            D
-          </span>
-          <span className="text-sm font-semibold tracking-tight">DeckFlow</span>
-        </Link>
+        <Logo size="md" />
 
         <nav className="mt-7 space-y-1 text-sm">
           <NavItem icon={<Home size={14} />} label="Dashboard" active />
@@ -104,12 +100,7 @@ export default function Dashboard({ user, onStartFromScratch, onSignOut }: Props
       <main className="px-4 py-8 sm:px-8 lg:px-12 lg:py-10">
         {/* Mobile header: brand + sign out */}
         <div className="mb-6 flex items-center justify-between lg:hidden">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-violet-400 to-fuchsia-500 text-[11px] font-bold text-white">
-              D
-            </span>
-            <span className="text-sm font-semibold tracking-tight">DeckFlow</span>
-          </Link>
+          <Logo size="sm" />
           <button
             onClick={onSignOut}
             className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/75 hover:bg-white/10"
@@ -151,7 +142,7 @@ export default function Dashboard({ user, onStartFromScratch, onSignOut }: Props
                 />
               </div>
               <p className="mt-1 text-xs leading-relaxed text-white/55">
-                Type a brief, pick a theme and graphic, and DeckFlow generates the
+                Type a brief, pick a theme and graphic, and EZdeck generates the
                 whole deck. Edit anything inline once it's made.
               </p>
             </div>
@@ -174,7 +165,7 @@ export default function Dashboard({ user, onStartFromScratch, onSignOut }: Props
               </div>
               <p className="mt-1 text-xs leading-relaxed text-white/45">
                 Drop in a PowerPoint or PDF template (your college's, your team's),
-                and DeckFlow fills in your content while keeping the original design.
+                and EZdeck fills in your content while keeping the original design.
               </p>
             </div>
           </div>
@@ -219,7 +210,7 @@ export default function Dashboard({ user, onStartFromScratch, onSignOut }: Props
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {decks.slice(0, 9).map((d) => (
               <DeckCard
                 key={d.id}
@@ -311,19 +302,14 @@ function DeckCard({
 }) {
   return (
     <article
-      className={`group relative flex flex-col rounded-2xl border p-4 transition ${
+      className={`group relative flex h-full flex-col rounded-2xl border p-4 transition ${
         isPaid
           ? "border-amber-300/40 bg-gradient-to-br from-amber-300/10 via-yellow-300/5 to-transparent hover:border-amber-300/60"
           : "border-white/10 bg-white/[0.02] hover:border-white/30 hover:bg-white/[0.04]"
       }`}
     >
-      <div
-        className={`mb-3 overflow-hidden rounded-xl border ${
-          isPaid
-            ? "border-amber-300/30"
-            : "border-white/10"
-        }`}
-      >
+      {/* Thumbnail — fixed aspect ratio so every card matches */}
+      <div className="mb-3">
         <DeckThumbnail item={deck} />
       </div>
 
@@ -333,16 +319,20 @@ function DeckCard({
         </span>
       )}
 
-      <h3 className="line-clamp-2 text-sm font-semibold text-white">{deck.title}</h3>
-      {deck.subtitle && (
-        <p className="mt-1 line-clamp-2 text-[11px] text-white/55">{deck.subtitle}</p>
-      )}
+      {/* Text block — fixed minimum height keeps actions aligned across cards */}
+      <div className="min-h-[64px]">
+        <h3 className="line-clamp-2 text-sm font-semibold text-white">{deck.title}</h3>
+        {deck.subtitle && (
+          <p className="mt-1 line-clamp-1 text-[11px] text-white/55">{deck.subtitle}</p>
+        )}
+      </div>
 
-      <div className="mt-3 flex items-center justify-between text-[11px] text-white/50">
+      <div className="mt-2 flex items-center justify-between text-[11px] text-white/50">
         <span>{deck.slides} slide{deck.slides === 1 ? "" : "s"}</span>
         <span>{formatRelative(deck.updatedAt)}</span>
       </div>
 
+      {/* Actions pinned to the bottom */}
       <div className="mt-3 flex items-center justify-between gap-2">
         <Link
           href={`/app?id=${deck.id}`}

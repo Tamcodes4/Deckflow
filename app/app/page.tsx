@@ -11,6 +11,7 @@ import GenerateOverlay from "@/components/GenerateOverlay";
 import TemplateGallery from "@/components/TemplateGallery";
 import OnboardingTour from "@/components/OnboardingTour";
 import Dashboard from "@/components/Dashboard";
+import Logo from "@/components/Logo";
 import { PRESET_THEMES, getTheme, type Theme } from "@/lib/themes";
 import type { Deck, ContentDensity } from "@/lib/types";
 import { applyTemplateToSlide, type TemplateVariantDefaults } from "@/lib/templates";
@@ -238,9 +239,7 @@ function PageInner() {
         <header className="mx-auto mb-12 flex max-w-6xl items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/" className="flex items-center">
-              <span className="border-b-2 border-white pb-0.5 font-semibold tracking-tight">
-                DeckFlow
-              </span>
+              <Logo size="sm" href={null} />
             </Link>
             <button
               onClick={() => setStep("dashboard")}

@@ -14,10 +14,10 @@ const VALID_LAYOUTS: SlideLayout[] = [
 ];
 
 const DENSITY_GUIDE: Record<ContentDensity, string> = {
-  concise: `Density: CONCISE.\n- 3 bullets per content slide.\n- Each bullet 4-8 words.`,
-  balanced: `Density: BALANCED.\n- 4 bullets per content slide.\n- Each bullet 8-14 words.`,
-  detailed: `Density: DETAILED.\n- 5 bullets per content slide.\n- Each bullet 14-22 words. Real sentences.`,
-  comprehensive: `Density: COMPREHENSIVE.\n- 5-6 bullets per content slide.\n- Each bullet 20-32 words.\n- Substance and specificity matter.`,
+  concise:        `Density: CONCISE.\n- Exactly 3 bullets per content slide. Hard cap.\n- Each bullet 4-8 words, max 60 characters.`,
+  balanced:       `Density: BALANCED.\n- Exactly 4 bullets per content slide. Hard cap.\n- Each bullet 8-14 words, max 90 characters.`,
+  detailed:       `Density: DETAILED.\n- Exactly 4 bullets per content slide. Hard cap (5 only if absolutely necessary).\n- Each bullet 12-20 words, max 130 characters.\n- Real sentences, but tight. NEVER let any single bullet exceed 130 chars.`,
+  comprehensive:  `Density: COMPREHENSIVE.\n- Exactly 5 bullets per content slide. Hard cap.\n- Each bullet 18-26 words, max 160 characters.\n- Substance and specificity matter, but NEVER overflow 160 chars per bullet — split into two bullets if needed.`,
 };
 
 const SYSTEM_PROMPT = `You are SlideGen, a senior presentation designer.
@@ -85,10 +85,25 @@ References:
 - Format: "Author (Year). Title. Publisher/Outlet."
 - Include "url" only if highly confident it's real.
 
-Text:
-- Titles <= 70 chars, subtitles <= 110 chars.
+Text — HARD LIMITS so content fits the slide canvas:
+- Slides render on a 16:9 canvas (13.33 × 7.5 inches). Padding ~0.6 in on all sides.
+- Title: <= 60 characters. Subtitle: <= 100 characters. NO exceptions — split into two slides if a topic needs more.
+- Body (quote / section lead-in): <= 240 characters.
+- Bullets: see density guide above. Strict caps. The model often goes over — DO NOT.
 - Notes 2-4 sentences per slide.
-- No emojis unless topic invites them.`;
+- No emojis unless topic invites them.
+
+Closing slide content — strict:
+- The closing slide is for the title only. Use "title": "Thank you", "Questions", or a short sign-off in the deck's voice.
+- "subtitle": optional, max 80 chars, only if the deck explicitly invited a takeaway.
+- DO NOT auto-include "Get in touch", "Contact us", emails, websites, phone numbers, social handles, or call-to-action language unless the user's prompt explicitly asks for a CTA. The default closing has zero contact info.
+
+Variety — make every deck feel custom to its topic:
+- Match tone to topic: a startup pitch should feel different from a college lecture from a wedding speech from an investor update. Pick layouts, language, and rhythm accordingly.
+- DO NOT use a fixed template across decks. Vary the layout sequence, the bullet rhythm, and which slides are "hero" vs "info-dense" based on what the topic actually needs.
+- Match formality to audience: a board meeting deck = restrained, no exclamation, no marketing voice. A creative kickoff = looser, more rhetorical.
+
+Read the user's prompt carefully and follow what they asked. If they specified a structure ("problem, solution, traction, ask"), use it exactly. If they asked for a particular slide ("include a slide on hiring"), include it. Do not paste in generic content because the topic is generic to you.`;
 
 function buildUserMessage(opts: {
   prompt: string;
@@ -102,13 +117,20 @@ function buildUserMessage(opts: {
     ? `Provide a "references" array with 4-8 plausible scholarly or industry sources for the topic.`
     : `Set "references" to an empty array — the user does not want a references slide.`;
 
-  return `Create a ${opts.slideCount}-slide presentation.
+  return `Create EXACTLY a ${opts.slideCount}-slide presentation. Output exactly ${opts.slideCount} entries in "slides". Not fewer. Not more. The user explicitly requested ${opts.slideCount} slides — honor that count.
+
+Slide structure expected:
+- Slide 1: title-hero
+- Slides 2 through ${opts.slideCount - 1}: a varied mix of bullets / two-column / table layouts that fit the topic. (If user prompt suggests structure like "Problem, Solution, Traction, Ask", follow that exact order.)
+- Slide ${opts.slideCount}: closing
 
 ${DENSITY_GUIDE[opts.density]}
 
 ${refLine}
 
-Topic / brief:
+Read the user's brief in full. Use every relevant detail they gave you — DO NOT drop or skip parts because the brief is long. If they listed sections / topics / numbers, honor each one explicitly. If they specified an order, preserve it.
+
+User's brief:
 """
 ${opts.prompt}
 """
@@ -116,7 +138,7 @@ ${opts.prompt}
 Audience: ${opts.audience || "general"}
 Tone: ${opts.tone || "professional, clear, engaging"}
 
-Return ONLY the JSON object.`;
+Return ONLY the JSON object. The "slides" array MUST have exactly ${opts.slideCount} entries.`;
 }
 
 function extractJson(raw: string): string {
@@ -194,22 +216,28 @@ async function fillEmptySlides(
   }));
 
   const sys = `You fill in missing content for specific slides of an existing deck.
-Output ONLY a JSON object: { "fills": [ { "index": number, "bullets"?: string[], "body"?: string, "table"?: {headers, rows, source} } ] }.
-For each target slide, provide the right content for its layout. NEVER return empty arrays.`;
+Output ONLY a JSON object: { "fills": [ { "index": number, "title"?: string, "bullets"?: string[], "body"?: string, "table"?: {headers, rows, source}, "subtitle"?: string } ] }.
+For each target slide, provide the right content for its layout, written specifically for the deck topic and audience. NEVER return empty arrays. NEVER write placeholder filler.
+
+Cover different angles of the topic across the slides — do not repeat the same idea on multiple slides. The reader should learn something new on each one.`;
 
   const user = `Deck topic: "${deck.topic || deck.title}"
+Deck title: "${deck.title}"
 Audience: ${deck.audience || "general"}
 Tone: ${deck.tone || "professional"}
 Density: ${deck.density || "balanced"}
+
+Existing slides (so you don't duplicate content):
+${JSON.stringify(deck.slides.map((s, i) => ({ i, layout: s.layout, title: s.title, bulletsPreview: (s.bullets || []).slice(0, 2) })), null, 2)}
 
 Slides needing content:
 ${JSON.stringify(targets, null, 2)}
 
 Rules per layout:
-- bullets / two-column: produce 3-5 concrete bullets (8-18 words each). Use the deck topic.
-- table: 3-5 rows with appropriate headers and a real-sounding source line.
-- quote: a relevant quote in "body" and attribution in subtitle (you can also include subtitle).
-- section: a short body line.
+- bullets / two-column: produce 3-5 concrete bullets (10-18 words each), specific to the deck topic. Each slide should focus on a distinct sub-topic. If the slide has no title, also propose a short title.
+- table: 3-5 rows with appropriate headers and a real-sounding "Author/Org, Year" source line.
+- quote: a relevant real quote in "body" with attribution in "subtitle".
+- section: a short body line and an evocative title.
 - title-hero / closing: not expected here; skip.
 
 Return ONLY the JSON.`;
@@ -217,7 +245,9 @@ Return ONLY the JSON.`;
   const completion = await withGroqClient((client) =>
     client.chat.completions.create({
       model: "openai/gpt-oss-120b",
-      temperature: 0.5,
+      temperature: 0.4,
+      // Same TPM constraint applies; fill pass usually only patches a
+      // handful of slides so 3000 is plenty.
       max_tokens: 3000,
       response_format: { type: "json_object" },
       messages: [
@@ -235,6 +265,7 @@ Return ONLY the JSON.`;
     const fill = fills.find((f) => f.index === i);
     if (!fill) return s;
     const updated: Slide = { ...s };
+    if (typeof fill.title === "string" && fill.title.trim()) updated.title = clean(fill.title);
     if (Array.isArray(fill.bullets)) updated.bullets = fill.bullets.map(clean).filter(Boolean);
     if (typeof fill.body === "string") updated.body = clean(fill.body);
     if (fill.table) updated.table = cleanTable(fill.table) || updated.table;
@@ -259,8 +290,13 @@ export async function generateDeck(opts: {
   const completion = await withGroqClient((client) =>
     client.chat.completions.create({
       model: "openai/gpt-oss-120b",
-      temperature: 0.7,
-      max_tokens: 6000,
+      temperature: 0.55,
+      // Groq free tier caps total tokens per request near the TPM limit
+      // (~8K for openai/gpt-oss-120b). System prompt + few-shots eat
+      // ~2.8K input, so keeping output around 5000 leaves headroom and
+      // avoids 413 Payload Too Large. Decks larger than this rely on the
+      // pad-and-fill-empty-slides safety net below.
+      max_tokens: 5000,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
@@ -305,6 +341,32 @@ export async function generateDeck(opts: {
 
   if (slides[0]) slides[0].layout = "title-hero";
   if (slides.length > 1) slides[slides.length - 1].layout = "closing";
+
+  // PAD: if the model returned fewer slides than asked, insert empty bullet
+  // slides in the middle and have the fill pass write content for them.
+  // This is a safety net — the prompt also tells the model to output
+  // exactly opts.slideCount slides, but we don't trust it 100%.
+  while (slides.length < opts.slideCount) {
+    const insertAt = Math.max(1, slides.length - 1); // before the closing
+    slides.splice(insertAt, 0, {
+      layout: "bullets",
+      title: "",
+      bullets: [],
+      annotations: [],
+    });
+  }
+
+  // TRIM: if the model returned more, drop extras from the middle (keep
+  // hero and closing).
+  if (slides.length > opts.slideCount) {
+    const trimmed = [
+      slides[0],
+      ...slides.slice(1, slides.length - 1).slice(0, opts.slideCount - 2),
+      slides[slides.length - 1],
+    ];
+    slides.length = 0;
+    slides.push(...trimmed);
+  }
 
   // Drop quote slides whose body is missing, too short, or looks like noise.
   // Better to lose a slide than ship "asdfasdf" content.

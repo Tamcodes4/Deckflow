@@ -10,6 +10,7 @@ import HeroBackdrop from "@/components/landing/HeroBackdrop";
 import { MockSlide } from "@/components/landing/MockSlide";
 import DeveloperNote from "@/components/landing/DeveloperNote";
 import Counter from "@/components/Counter";
+import Logo from "@/components/Logo";
 import { dailyActiveUsers, totalDecksGenerated, decksToday, trackEvent } from "@/lib/stats";
 import { isLoggedIn, logout, onAuthStateChange, type AppUser } from "@/lib/auth";
 
@@ -51,9 +52,7 @@ export default function LandingPage() {
       {/* ----- Header ----- */}
       <header className="sticky top-0 z-50 border-b border-white/5 bg-black/60 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link href="/" className="font-semibold tracking-tight">
-            <span className="border-b-2 border-white pb-0.5">DeckFlow</span>
-          </Link>
+          <Logo size="md" />
           <nav className="hidden items-center gap-6 text-sm text-white/70 md:flex">
             <a href="#features" className="hover:text-white">Features</a>
             <a href="#how" className="hover:text-white">How it works</a>
@@ -260,7 +259,7 @@ export default function LandingPage() {
       <section className="relative z-10 mx-auto max-w-3xl px-6 py-16">
         <blockquote className="rounded-2xl border border-white/10 bg-white/[0.03] p-7 text-center">
           <p className="text-balance text-lg italic text-white/85">
-            "I had a deck due in two hours. DeckFlow gave me something I was
+            "I had a deck due in two hours. EZdeck gave me something I was
             willing to put my name on by the time I'd finished the first coffee."
           </p>
           <div className="mt-3 text-xs text-white/45">
@@ -289,9 +288,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-6 py-10">
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
             <div className="col-span-2 sm:col-span-1">
-              <div className="font-semibold tracking-tight">
-                <span className="border-b-2 border-white pb-0.5">DeckFlow</span>
-              </div>
+              <Logo size="md" />
               <p className="mt-3 text-xs text-white/45 leading-relaxed">
                 A presentation tool that respects your time. Built in the
                 open by Muhammad Izhan.
@@ -332,7 +329,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-white/5 pt-6 text-xs text-white/40">
-            <span>© {new Date().getFullYear()} DeckFlow · All rights reserved</span>
+            <span>© {new Date().getFullYear()} EZdeck · All rights reserved</span>
             <span className="flex items-center gap-3">
               <Link href="/privacy" className="hover:text-white/70">Privacy</Link>
               <Link href="/terms" className="hover:text-white/70">Terms</Link>

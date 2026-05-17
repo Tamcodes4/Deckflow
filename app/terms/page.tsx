@@ -1,7 +1,7 @@
 import LegalShell from "@/components/legal/LegalShell";
 import { LEGAL } from "@/lib/legal";
 
-export const metadata = { title: "Terms & Conditions · DeckFlow" };
+export const metadata = { title: "Terms & Conditions · EZdeck" };
 
 export default function TermsPage() {
   return (
@@ -10,9 +10,9 @@ export default function TermsPage() {
 
       <p>
         These Terms & Conditions ("Terms") form a binding agreement between
-        you ("user", "you") and {LEGAL.BUSINESS_NAME} ("DeckFlow", "we",
+        you ("user", "you") and {LEGAL.BUSINESS_NAME} ("EZdeck", "we",
         "our", "us") governing your access to and use of the website at{" "}
-        {LEGAL.DOMAIN} and all related services (the "Service"). DeckFlow is
+        {LEGAL.DOMAIN} and all related services (the "Service"). EZdeck is
         operated by {LEGAL.PROPRIETOR_NAME} as a sole-proprietor independent
         project. By creating an account or using the Service, you accept
         these Terms in full. If you do not accept them, do not use the
@@ -38,7 +38,7 @@ export default function TermsPage() {
 
       <h2>3. Description of Service</h2>
       <p>
-        DeckFlow is a software-as-a-service product that uses generative AI
+        EZdeck is a software-as-a-service product that uses generative AI
         to produce, edit, and export presentation files based on user
         prompts and uploads. The Service is offered on an "as is" basis.
         Features and prices may change; we will provide reasonable notice

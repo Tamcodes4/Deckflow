@@ -184,7 +184,7 @@ async function renderTitleAsymmetric(
       valign: "top",
     });
   }
-  s.addText("DECKFLOW", {
+  s.addText("EZDECK", {
     x: 0.6, y: H - 0.7, w: panelW - 1, h: 0.4,
     fontSize: 10, bold: true, color: hex(theme.bg),
     charSpacing: 5, fontFace: fontFor(theme, slide),

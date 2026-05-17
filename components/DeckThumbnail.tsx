@@ -21,15 +21,21 @@ export default function DeckThumbnail({
   if (!slide) {
     return (
       <div
-        className={`flex items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-transparent ${className}`}
+        className={`relative w-full overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-transparent ${className}`}
+        style={{ aspectRatio: "16 / 9" }}
       >
-        <FileText size={22} className="text-white/30" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <FileText size={22} className="text-white/30" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={`overflow-hidden rounded-xl border border-white/10 ${className}`}>
+    <div
+      className={`relative w-full overflow-hidden rounded-xl border border-white/10 ${className}`}
+      style={{ aspectRatio: "16 / 9" }}
+    >
       <SlideCanvas
         slide={slide}
         theme={theme}

@@ -32,7 +32,7 @@ const ALL_STEPS: Step[] = [
   {
     id: "start-from-scratch",
     title: "Make your first deck",
-    body: "Start with a brief — a sentence or two about the topic — and DeckFlow generates a polished deck in about ten seconds. Edit anything inline once it's ready.",
+    body: "Start with a brief — a sentence or two about the topic — and EZdeck generates a polished deck in about ten seconds. Edit anything inline once it's ready.",
     target: "start-from-scratch",
     placement: "bottom",
   },

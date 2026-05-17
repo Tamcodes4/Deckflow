@@ -100,6 +100,21 @@ CRITICAL — content authoring rules:
 - For numeric/comparative content, switch layout to "table" if not already.
 - If user says "actually write the X" / "fill in", use deck topic from context to write concrete content. No placeholders.
 
+CRITICAL — REMOVAL semantics. Read the user's instruction carefully:
+- "remove X" / "delete X" / "get rid of X" / "no X" / "without X" -> you MUST output a REMOVAL field, never an additive one. Specifically:
+  * Removing slide title: \`{ "title": "" }\`
+  * Removing slide subtitle: \`{ "subtitle": "" }\`
+  * Removing the body / a quote / a section lead-in: \`{ "body": "" }\`
+  * Removing all bullets: \`{ "bullets": [] }\`
+  * Removing specific bullets: \`removeBullets\` with their indices
+  * Removing a corner annotation (e.g. "Get in touch", a tagline): use \`removeAnnotations\` with its index from context, or \`clearAnnotations: true\` to remove all
+  * Removing a graphic / icon / chart: \`removeElements\` with the element's id from context, or \`["*"]\` to clear all elements
+- If the user says "remove X" and X is not present in the current slide, return \`{ "explanation": "X is not on this slide; no change made." }\` and DO NOT add it. NEVER hallucinate that something exists in order to "remove" it, and NEVER respond by adding it.
+
+Closing slide rules:
+- A closing slide normally only contains a thank-you title and an optional one-line subtitle.
+- If the user says "remove get in touch / contact / cta" from the closing slide, that text usually lives in the subtitle, the body, or in annotations. Clear the relevant field(s).
+
 Graphics & icons:
 - Use addElements for "add a chart", "add an icon", "add a donut on the right", "add a rocket top-right in red".
 - Decorations are layout shapes, charts, infographics. Available decorationId values: ${DECORATION_NAMES}.
@@ -199,6 +214,75 @@ Return ONLY the JSON patch.`,
         { id: "icon_xyz", patch: { position: "bottom-right", size: "large" } },
       ],
       explanation: "Moved the rocket icon to the bottom-right and made it larger.",
+    }),
+  },
+
+  /* example 5: REMOVE annotation that exists */
+  {
+    role: "user" as const,
+    content: `Deck context: { topic: "investor update" }
+Current slide: {
+  layout: "closing",
+  title: "Thank you",
+  subtitle: "Get in touch — hello@example.com",
+  annotations: [{ index: 0, text: "Get in touch", anchor: "bottom-center" }]
+}
+Instruction: "remove the get in touch from the last slide"
+Return ONLY the JSON patch.`,
+  },
+  {
+    role: "assistant" as const,
+    content: JSON.stringify({
+      subtitle: "",
+      removeAnnotations: [0],
+      explanation: "Removed the 'Get in touch' subtitle and corner annotation from the closing slide.",
+    }),
+  },
+
+  /* example 6: REMOVE something that DOES NOT exist on the slide */
+  {
+    role: "user" as const,
+    content: `Deck context: { topic: "lecture" }
+Current slide: {
+  layout: "bullets",
+  title: "Methodology",
+  bullets: ["Sample size n=240", "Mixed-methods design", "IRB-approved protocol"],
+  annotations: []
+}
+Instruction: "remove the get in touch"
+Return ONLY the JSON patch.`,
+  },
+  {
+    role: "assistant" as const,
+    content: JSON.stringify({
+      explanation: "There is no 'Get in touch' element on this slide; no change made.",
+    }),
+  },
+
+  /* example 7: empty slide, user asks to add relevant content */
+  {
+    role: "user" as const,
+    content: `Deck context: { topic: "Phishing awareness training", deckTitle: "Phishing 101", themeAccent: "#0E7490" }
+Current slide: {
+  layout: "bullets",
+  title: "",
+  bullets: []
+}
+Instruction: "add content relevant to the deck"
+Return ONLY the JSON patch.`,
+  },
+  {
+    role: "assistant" as const,
+    content: JSON.stringify({
+      title: "Spotting a phishing email",
+      bullets: [
+        "Sender address looks close but not exact (paypa1.com instead of paypal.com)",
+        "Urgent or threatening language pushing immediate action",
+        "Generic greeting like 'Dear customer' instead of your name",
+        "Hover over links — the URL doesn't match the real domain",
+      ],
+      notes: "Cover the four most common signals first; demo a real example next.",
+      explanation: "Filled the empty slide with four phishing-spot signals tailored to the deck topic.",
     }),
   },
 ];
@@ -582,7 +666,7 @@ export async function POST(req: NextRequest) {
     const completion = await withGroqClient((client) =>
       client.chat.completions.create({
         model: "openai/gpt-oss-120b",
-        temperature: 0.3,
+        temperature: 0.15,
         max_tokens: 2000,
         response_format: { type: "json_object" },
         messages: [

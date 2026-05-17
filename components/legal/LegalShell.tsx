@@ -8,7 +8,7 @@ export default function LegalShell({
     <main className="relative min-h-screen bg-black text-white">
       <header className="mx-auto flex max-w-3xl items-center justify-between px-6 py-6">
         <Link href="/" className="font-semibold tracking-tight">
-          <span className="border-b-2 border-white pb-0.5">DeckFlow</span>
+          <span className="border-b-2 border-white pb-0.5">EZdeck</span>
         </Link>
         <Link href="/" className="text-sm text-white/60 hover:text-white">← Back to home</Link>
       </header>
