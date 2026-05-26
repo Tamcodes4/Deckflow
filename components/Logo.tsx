@@ -70,8 +70,8 @@ function Mark({ size, fontSize }: { size: number; fontSize: number }) {
     >
       <defs>
         <linearGradient id={`${id}-bg`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#7C5CFF" />
-          <stop offset="50%" stopColor="#9D5CFF" />
+          <stop offset="0%" stopColor="#0E2746" />
+          <stop offset="55%" stopColor="#0E7490" />
           <stop offset="100%" stopColor="#22D3EE" />
         </linearGradient>
         <linearGradient id={`${id}-shine`} x1="0" y1="0" x2="0" y2="1">

@@ -168,7 +168,7 @@ export default function OnboardingTour({ enabled = true }: { enabled?: boolean }
               borderRadius: 14,
               background: "transparent",
               boxShadow:
-                "0 0 0 9999px rgba(5, 5, 7, 0.62), 0 0 0 2px rgba(196,181,253,0.85), 0 16px 60px -10px rgba(124,92,255,0.55)",
+                "0 0 0 9999px rgba(5, 11, 23, 0.68), 0 0 0 2px rgba(103,232,249,0.85), 0 16px 60px -10px rgba(34,211,238,0.55)",
               transition: "top 280ms cubic-bezier(.2,.7,.2,1), left 280ms cubic-bezier(.2,.7,.2,1), width 280ms cubic-bezier(.2,.7,.2,1), height 280ms cubic-bezier(.2,.7,.2,1)",
               pointerEvents: "none",
             }}
@@ -183,7 +183,7 @@ export default function OnboardingTour({ enabled = true }: { enabled?: boolean }
               width: rect.width + 16,
               height: rect.height + 16,
               borderRadius: 14,
-              border: "2px solid rgba(196,181,253,0.85)",
+              border: "2px solid rgba(103,232,249,0.85)",
               transition: "top 280ms cubic-bezier(.2,.7,.2,1), left 280ms cubic-bezier(.2,.7,.2,1), width 280ms cubic-bezier(.2,.7,.2,1), height 280ms cubic-bezier(.2,.7,.2,1)",
               animation: "deckflow-tour-pulse 1.6s ease-in-out infinite",
               pointerEvents: "none",
@@ -208,7 +208,7 @@ export default function OnboardingTour({ enabled = true }: { enabled?: boolean }
         className="rounded-2xl border border-white/10 bg-zinc-950/95 p-5 shadow-2xl backdrop-blur"
       >
         <div className="mb-2 flex items-center justify-between">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-violet-300/30 bg-violet-300/10 px-2 py-0.5 text-[10px] font-medium text-violet-200">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2 py-0.5 text-[10px] font-medium text-cyan-100">
             <Sparkles size={10} /> Quick tour · {stepIdx + 1} of {ALL_STEPS.length}
           </div>
           <button
@@ -231,7 +231,7 @@ export default function OnboardingTour({ enabled = true }: { enabled?: boolean }
                 className="h-1.5 rounded-full transition-all"
                 style={{
                   width: i === stepIdx ? 18 : 6,
-                  background: i === stepIdx ? "rgba(196,181,253,0.85)" : "rgba(255,255,255,0.25)",
+                  background: i === stepIdx ? "rgba(103,232,249,0.85)" : "rgba(255,255,255,0.25)",
                 }}
               />
             ))}
@@ -258,8 +258,8 @@ export default function OnboardingTour({ enabled = true }: { enabled?: boolean }
 
       <style jsx global>{`
         @keyframes deckflow-tour-pulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(124,92,255,0.0); }
-          50%      { box-shadow: 0 0 0 8px rgba(124,92,255,0.18); }
+          0%, 100% { box-shadow: 0 0 0 0 rgba(34,211,238,0.0); }
+          50%      { box-shadow: 0 0 0 8px rgba(34,211,238,0.18); }
         }
         @keyframes deckflow-tour-tip {
           from { opacity: 0; transform: translateY(6px); }

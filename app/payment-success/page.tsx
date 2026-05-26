@@ -88,13 +88,13 @@ function Inner() {
       className="grid min-h-screen place-items-center px-4"
       style={{
         background:
-          "radial-gradient(60% 50% at 50% 30%, rgba(34,197,94,0.15), transparent 70%), radial-gradient(40% 35% at 80% 80%, rgba(124,92,255,0.12), transparent 70%), #050507",
+          "radial-gradient(60% 50% at 50% 30%, rgba(34,211,238,0.16), transparent 70%), radial-gradient(40% 35% at 80% 80%, rgba(14,116,144,0.32), transparent 70%), #050B17",
       }}
     >
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950 p-7 text-center shadow-2xl">
         {status === "verifying" && (
           <>
-            <Loader2 size={32} className="mx-auto mb-4 animate-spin text-violet-300" />
+            <Loader2 size={32} className="mx-auto mb-4 animate-spin text-cyan-300" />
             <h1 className="text-xl font-semibold text-white">Confirming your payment…</h1>
             <p className="mt-2 text-sm text-white/60">
               Just a moment. We're unlocking your deck.

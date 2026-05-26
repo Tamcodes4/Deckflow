@@ -3,8 +3,18 @@
 @tailwind utilities;
 
 :root {
-  --bg: #0a0a0a;
-  --fg: #fafafa;
+  /* Navy-cyan palette — used by the landing chrome and any non-Tailwind
+     surfaces. Tailwind components reference these too via arbitrary
+     values where helpful. */
+  --bg: #050B17;
+  --bg-elev: #0A1628;
+  --fg: #E6EDF7;
+  --fg-muted: rgba(230, 237, 247, 0.62);
+  --fg-quiet: rgba(230, 237, 247, 0.38);
+  --hairline: rgba(140, 179, 230, 0.12);
+  --accent: #22D3EE;          /* cyan-400 */
+  --accent-soft: #67E8F9;     /* cyan-300 */
+  --accent-deep: #0891B2;     /* cyan-600 */
 }
 
 html, body {

@@ -117,7 +117,7 @@ export default function SlideRail({ deck, theme, active, setActive, onChange }: 
 
           {/* Drop indicator */}
           {dropIdx === i && dragIdx !== null && dragIdx !== i && (
-            <div className="my-1 h-0.5 w-full rounded bg-violet-400" />
+            <div className="my-1 h-0.5 w-full rounded bg-cyan-400" />
           )}
 
           <button
@@ -204,32 +204,32 @@ function InsertBar({ onClick, label, highlight }: { onClick: () => void; label?:
     <button
       onClick={onClick}
       className={`group my-1 flex h-5 w-full items-center justify-center transition ${
-        highlight ? "text-violet-200" : "text-white/0 hover:text-white/80"
+        highlight ? "text-cyan-100" : "text-white/0 hover:text-white/80"
       }`}
       title={label || "Insert slide here"}
     >
       <span className={`flex h-px flex-1 transition ${
-        highlight ? "bg-violet-300/60" : "bg-transparent group-hover:bg-white/20"
+        highlight ? "bg-cyan-300/60" : "bg-transparent group-hover:bg-white/20"
       }`} />
       <span
         className={`mx-2 grid h-4 w-4 place-items-center rounded-full text-[10px] transition ${
           highlight
-            ? "border border-violet-300/70 bg-violet-500/30 text-violet-100 deckflow-tip-pulse"
+            ? "border border-cyan-300/70 bg-cyan-500/30 text-cyan-50 deckflow-tip-pulse"
             : "border border-white/20 bg-zinc-950 text-white/0 group-hover:text-white/85"
         }`}
       >
         +
       </span>
       <span className={`flex h-px flex-1 transition ${
-        highlight ? "bg-violet-300/60" : "bg-transparent group-hover:bg-white/20"
+        highlight ? "bg-cyan-300/60" : "bg-transparent group-hover:bg-white/20"
       }`} />
       <style jsx>{`
         .deckflow-tip-pulse {
           animation: deckflow-tip-pulse 1.6s ease-in-out infinite;
         }
         @keyframes deckflow-tip-pulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(167, 139, 250, 0); }
-          50%      { box-shadow: 0 0 0 8px rgba(167, 139, 250, 0.18); }
+          0%, 100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
+          50%      { box-shadow: 0 0 0 8px rgba(34, 211, 238, 0.18); }
         }
       `}</style>
     </button>
@@ -245,15 +245,15 @@ function AddSlideTip({ onDismiss }: { onDismiss: () => void }) {
     <div
       role="dialog"
       aria-label="Add a slide tip"
-      className="pointer-events-auto absolute left-full top-1/2 z-[60] ml-3 w-[220px] -translate-y-1/2 rounded-xl border border-violet-300/30 bg-zinc-950/95 p-3 shadow-2xl backdrop-blur"
+      className="pointer-events-auto absolute left-full top-1/2 z-[60] ml-3 w-[220px] -translate-y-1/2 rounded-xl border border-cyan-300/30 bg-zinc-950/95 p-3 shadow-2xl backdrop-blur"
     >
       {/* Pointer arrow */}
       <span
         aria-hidden
-        className="absolute -left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 border-b border-l border-violet-300/30 bg-zinc-950"
+        className="absolute -left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 border-b border-l border-cyan-300/30 bg-zinc-950"
       />
       <div className="mb-1 flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1 rounded-full border border-violet-300/30 bg-violet-300/10 px-2 py-0.5 text-[10px] font-medium text-violet-200">
+        <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2 py-0.5 text-[10px] font-medium text-cyan-100">
           ✨ Tip
         </span>
         <button
@@ -265,7 +265,7 @@ function AddSlideTip({ onDismiss }: { onDismiss: () => void }) {
         </button>
       </div>
       <p className="text-[11px] leading-relaxed text-white/80">
-        Click the <span className="font-semibold text-violet-200">+</span> between slides to add a new one anywhere in your deck.
+        Click the <span className="font-semibold text-cyan-200">+</span> between slides to add a new one anywhere in your deck.
       </p>
       <button
         onClick={onDismiss}

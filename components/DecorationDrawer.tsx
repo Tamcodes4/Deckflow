@@ -64,7 +64,7 @@ export default function DecorationDrawer({
       >
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
           <div className="flex items-center gap-2">
-            <Shapes size={14} className="text-violet-300" />
+            <Shapes size={14} className="text-cyan-300" />
             <span className="text-sm font-semibold text-white">Graphic library</span>
             {!inIconMode && <span className="text-[10px] text-white/40">· {DECORATIONS.length}</span>}
           </div>

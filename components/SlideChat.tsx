@@ -99,7 +99,7 @@ export default function SlideChat({
           <Sparkles
             size={12}
             className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${
-              loading ? "animate-pulse text-violet-300" : "text-white/40"
+              loading ? "animate-pulse text-cyan-300" : "text-white/40"
             }`}
           />
           <input

@@ -136,8 +136,14 @@ function TemplateCard({ template, onPick }: { template: DeckTemplate; onPick: ()
   return (
     <button
       onClick={onPick}
-      className="group flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/[0.02] text-left transition hover:border-white/40 hover:bg-white/[0.04]"
+      className="group relative flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/[0.02] text-left transition hover:border-white/40 hover:bg-white/[0.04]"
     >
+      {template.isNew && (
+        <span className="pointer-events-none absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full border border-emerald-300/40 bg-gradient-to-br from-emerald-300/30 via-emerald-400/20 to-transparent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-100 shadow-[0_0_18px_-4px_rgba(52,211,153,0.55)] backdrop-blur">
+          <span className="h-1 w-1 rounded-full bg-emerald-300" />
+          New
+        </span>
+      )}
       <TemplatePreview template={template} theme={theme} />
       <div className="flex items-center justify-between gap-3 border-t border-white/10 px-3 py-2.5">
         <div className="min-w-0">

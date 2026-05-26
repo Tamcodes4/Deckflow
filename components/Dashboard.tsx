@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowRight, Crown, FileText, Home, Loader2, LogOut, Plus, Sparkles, Trash2, Upload, Wand2,
+  ArrowRight, Crown, FileText, Home, Loader2, LogOut, Plus, Sparkles, Trash2, Wand2,
 } from "lucide-react";
 import { logout, type AppUser } from "@/lib/auth";
 import { deleteDeck, watchDeckList, type DeckListItem } from "@/lib/decks";
@@ -77,7 +77,7 @@ export default function Dashboard({ user, onStartFromScratch, onSignOut }: Props
 
         <div className="mt-auto rounded-2xl border border-white/10 bg-white/[0.02] p-3">
           <div className="flex items-center gap-2.5">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-500 text-sm font-semibold text-white">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-cyan-400 to-sky-700 text-sm font-semibold text-white">
               {(user.name || user.email || "U").charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
@@ -112,7 +112,7 @@ export default function Dashboard({ user, onStartFromScratch, onSignOut }: Props
         {/* Welcome */}
         <div className="mb-8">
           <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/70">
-            <Sparkles size={11} className="text-violet-300" />
+            <Sparkles size={11} className="text-cyan-300" />
             Welcome back
           </div>
           <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
@@ -123,14 +123,14 @@ export default function Dashboard({ user, onStartFromScratch, onSignOut }: Props
           </p>
         </div>
 
-        {/* Two big create actions */}
-        <div className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+        {/* Primary create action */}
+        <div className="mb-10">
           <button
             onClick={onStartFromScratch}
             data-tour="start-from-scratch"
-            className="group flex items-start gap-4 rounded-2xl border border-white/10 bg-gradient-to-br from-violet-500/10 via-white/[0.02] to-transparent p-5 text-left transition hover:border-violet-300/40 hover:from-violet-500/20"
+            className="group flex w-full items-start gap-4 rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-500/10 via-white/[0.02] to-transparent p-5 text-left transition hover:border-cyan-300/40 hover:from-cyan-500/20"
           >
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-violet-300/30 bg-violet-300/10 text-violet-200 transition group-hover:bg-violet-300/20">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-200 transition group-hover:bg-cyan-300/20">
               <Wand2 size={20} />
             </span>
             <div className="min-w-0 flex-1">
@@ -147,28 +147,6 @@ export default function Dashboard({ user, onStartFromScratch, onSignOut }: Props
               </p>
             </div>
           </button>
-
-          <div
-            aria-disabled
-            className="relative flex cursor-not-allowed items-start gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-left opacity-70"
-            title="Coming soon"
-          >
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/55">
-              <Upload size={20} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 text-base font-semibold text-white/85">
-                Upload your own template
-                <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-200">
-                  Soon
-                </span>
-              </div>
-              <p className="mt-1 text-xs leading-relaxed text-white/45">
-                Drop in a PowerPoint or PDF template (your college's, your team's),
-                and EZdeck fills in your content while keeping the original design.
-              </p>
-            </div>
-          </div>
         </div>
 
         {/* Recent decks */}

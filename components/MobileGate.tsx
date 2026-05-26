@@ -123,11 +123,11 @@ export default function MobileGate() {
             display: "grid",
             placeItems: "center",
             borderRadius: 12,
-            background: "linear-gradient(135deg, rgba(124,92,255,0.28), rgba(34,197,94,0.16))",
+            background: "linear-gradient(135deg, rgba(34,211,238,0.28), rgba(14,116,144,0.16))",
             border: "1px solid rgba(255, 255, 255, 0.1)",
           }}
         >
-          <Monitor size={20} color="#c4b5fd" />
+          <Monitor size={20} color="#67E8F9" />
         </div>
 
         <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, lineHeight: 1.3 }}>

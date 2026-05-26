@@ -39,7 +39,7 @@ export default function MyDecksPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black px-4 py-10 sm:px-8">
+    <main className="min-h-screen bg-gradient-to-b from-[#03070F] via-[#050B17] to-[#03070F] px-4 py-10 sm:px-8">
       <header className="mx-auto mb-10 flex max-w-5xl items-center justify-between">
         <Logo size="md" />
         <Link

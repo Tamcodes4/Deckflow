@@ -40,9 +40,160 @@ export type DeckTemplate = {
   samplePrompt: string;
   /** Per-layout visual variants applied to every slide after generation. */
   variants: TemplateVariantDefaults;
+  /** Show a "NEW" badge on the gallery card. */
+  isNew?: boolean;
 };
 
 export const DECK_TEMPLATES: DeckTemplate[] = [
+  /* ============================================================
+   * NEW HERO SET — six saturated, high-impact templates designed
+   * to ship together. Bold backgrounds, bright contrasting accents,
+   * white text everywhere so legibility is guaranteed across every
+   * layout. These sit at the top of the catalog so they land on
+   * the first page of the gallery.
+   * ============================================================ */
+  {
+    id: "midnight-aurora",
+    name: "Midnight Aurora",
+    tagline: "Deep slate with electric amber. Modern, premium, conference-stage.",
+    category: "Keynote",
+    themeId: "slate-bold",
+    fontId: "bricolage",
+    graphicId: "mesh-gradient",
+    graphicAccent: "#F59E0B",
+    density: "balanced",
+    includeReferences: false,
+    samplePrompt: "Annual product keynote: the year in review, what we shipped, the bet for the year ahead, and the one thing we want people to remember.",
+    variants: {
+      titleVariant: "big-initial",
+      bulletsVariant: "cards",
+      twoColumnVariant: "cards",
+      tableVariant: "accent-header",
+      quoteVariant: "stacked",
+      sectionVariant: "kicker-hero",
+      closingVariant: "cta",
+    },
+    isNew: true,
+  },
+  {
+    id: "neon-crimson",
+    name: "Neon Crimson",
+    tagline: "Saturated crimson with gold accents. Loud, confident, unmissable.",
+    category: "Pitch",
+    themeId: "crimson",
+    fontId: "syne",
+    graphicId: "diagonal-stripes",
+    graphicAccent: "#FCD34D",
+    density: "balanced",
+    includeReferences: false,
+    samplePrompt: "Series A pitch for a consumer fintech app. Problem, our edge, traction so far, market size, the team, the ask.",
+    variants: {
+      titleVariant: "asymmetric",
+      bulletsVariant: "numbered",
+      twoColumnVariant: "compare",
+      tableVariant: "accent-header",
+      quoteVariant: "card",
+      sectionVariant: "split",
+      closingVariant: "cta",
+    },
+    isNew: true,
+  },
+  {
+    id: "electric-cobalt",
+    name: "Electric Cobalt",
+    tagline: "Cobalt blue with tangerine accents. Trustworthy, sharp, enterprise-grade.",
+    category: "Investor",
+    themeId: "cobalt",
+    fontId: "ibm-plex-sans",
+    graphicId: "concentric",
+    graphicAccent: "#FB923C",
+    density: "detailed",
+    includeReferences: false,
+    samplePrompt: "Quarterly investor update: ARR, retention, hiring, what shipped, what's blocked, and our ask for the next round.",
+    variants: {
+      titleVariant: "numbered",
+      bulletsVariant: "icon-check",
+      twoColumnVariant: "numbered",
+      tableVariant: "accent-header",
+      quoteVariant: "card",
+      sectionVariant: "split",
+      closingVariant: "contact",
+    },
+    isNew: true,
+  },
+  {
+    id: "emerald-prism",
+    name: "Emerald Prism",
+    tagline: "Deep emerald with gold rays. Climate, sustainability, vision-forward.",
+    category: "Keynote",
+    themeId: "emerald",
+    fontId: "manrope",
+    graphicId: "topographic",
+    graphicAccent: "#FCD34D",
+    density: "balanced",
+    includeReferences: true,
+    samplePrompt: "Climate strategy keynote: where we are on emissions, the net-zero plan, the partners we need, and what success looks like in five years.",
+    variants: {
+      titleVariant: "underlined",
+      bulletsVariant: "icon-check",
+      twoColumnVariant: "compare",
+      tableVariant: "accent-header",
+      quoteVariant: "stacked",
+      sectionVariant: "kicker-hero",
+      closingVariant: "cta",
+    },
+    isNew: true,
+  },
+  {
+    id: "royal-flux",
+    name: "Royal Flux",
+    tagline: "Royal indigo with hot-pink edge. Bold creative pitches and brand decks.",
+    category: "Brand",
+    themeId: "royal-indigo",
+    fontId: "outfit",
+    graphicId: "corner-arc",
+    graphicAccent: "#F472B6",
+    density: "balanced",
+    includeReferences: false,
+    samplePrompt: "Creative agency capabilities deck. Who we are, the work we love, our process, and the kinds of partners we want to build with.",
+    variants: {
+      titleVariant: "big-initial",
+      bulletsVariant: "cards",
+      twoColumnVariant: "cards",
+      tableVariant: "minimal",
+      quoteVariant: "editorial",
+      sectionVariant: "kicker-hero",
+      closingVariant: "qa",
+    },
+    isNew: true,
+  },
+  {
+    id: "obsidian-edge",
+    name: "Obsidian Edge",
+    tagline: "Black canvas with violet accents. Engineering, security, deep tech.",
+    category: "Engineering",
+    themeId: "obsidian",
+    fontId: "jetbrains",
+    graphicId: "blueprint",
+    graphicAccent: "#A78BFA",
+    density: "detailed",
+    includeReferences: false,
+    samplePrompt: "Architecture review for our new payments service. Goals, the design, the alternatives we considered, the tradeoffs, the rollout plan.",
+    variants: {
+      titleVariant: "underlined",
+      bulletsVariant: "dashed",
+      twoColumnVariant: "compare",
+      tableVariant: "compact",
+      quoteVariant: "card",
+      sectionVariant: "minimal",
+      closingVariant: "qa",
+    },
+    isNew: true,
+  },
+
+  /* ============================================================
+   * Original catalog continues below.
+   * ============================================================ */
   {
     id: "bold-cobalt",
     name: "Bold Cobalt",

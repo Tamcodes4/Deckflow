@@ -216,7 +216,7 @@ function PageInner() {
   // Dashboard owns its own layout; render it standalone.
   if (isDashboard && user) {
     return (
-      <main className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black text-white">
+      <main className="min-h-screen bg-gradient-to-b from-[#03070F] via-[#050B17] to-[#03070F] text-white">
         <Dashboard
           user={user}
           onStartFromScratch={() => setStep("prompt")}
@@ -231,7 +231,7 @@ function PageInner() {
 
   return (
     <main
-      className={`min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black ${
+      className={`min-h-screen bg-gradient-to-b from-[#03070F] via-[#050B17] to-[#03070F] ${
         fullBleed ? "px-4 py-6 sm:px-8" : "px-4 py-10 sm:px-8"
       }`}
     >

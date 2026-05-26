@@ -72,7 +72,7 @@ export default function ShareViewer({ params }: { params: { id: string } }) {
     : deck.slides[active];
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black px-4 py-6 sm:px-8">
+    <main className="min-h-screen bg-gradient-to-b from-[#03070F] via-[#050B17] to-[#03070F] px-4 py-6 sm:px-8">
       <header className="mx-auto mb-6 flex max-w-6xl items-center justify-between">
         <Logo size="sm" />
         <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/65">

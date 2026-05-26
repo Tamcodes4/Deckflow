@@ -1,34 +1,110 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Sparkles, Wand2 } from "lucide-react";
+import { getTheme } from "@/lib/themes";
 
 /**
- * Full-screen "deck is being prepared" overlay shown while we wait for the
- * generation API to come back. Stays on screen for at least 10s so a fast
- * generation still feels deliberate; longer generations keep animating
- * until the parent unmounts the overlay.
+ * Full-screen "deck is being prepared" overlay.
  *
- * Design language:
- *   - dark-mode glassy surface with subtle animated grain
- *   - rotating one-liner status text under the headline
- *   - 5 slide cards that "build in" one at a time and keep filling rows
- *     of text bars to mimic content streaming in
- *   - gradient sparkle accents and a tiny progress bar that loops cleanly
+ * Three real-template slide cards on a stage. Each card progresses
+ * through a deterministic build sequence: paper → accent rail → kicker
+ * → title → body → footer. The phases and offsets are baked into a
+ * pure CSS animation that loops forever, so React renders the tree
+ * exactly once per open and the GPU does the rest.
+ *
+ * Why CSS instead of rAF:
+ *   - The previous version re-rendered every frame via setState. That
+ *     cascades through React reconciliation and triggers width/height
+ *     layout work per frame, which gets glitchy under load.
+ *   - Now every animated property is `transform` or `opacity` only.
+ *     No layout, no paint, just compositor work. Smooth even on
+ *     low-end machines.
+ *
+ * Cards reference real DECK_TEMPLATES themes (cobalt, emerald,
+ * crimson) so the preview shows something close to what the user
+ * will actually get out the other end.
  */
+
+/** ms — total animation cycle length, before it loops. */
+const CYCLE_MS = 4500;
+
+/** ms — per-card start delay so they assemble in sequence, not all at once. */
+const CARD_OFFSETS_MS = [0, 380, 760];
 
 const ROTATING_LINES = [
   "Reading your brief…",
-  "Choosing layouts that match the topic…",
-  "Drafting headlines and bullets…",
+  "Sketching layouts…",
+  "Drafting headlines…",
+  "Filling in the content…",
   "Picking the right colors…",
-  "Composing speaker notes…",
-  "Adding tables, quotes, and section dividers…",
-  "Final passes on typography…",
-  "Almost there — polishing pixels…",
+  "Polishing the pixels…",
+  "Almost there…",
+];
+
+type SlideSpec = {
+  /** Theme id from lib/themes.ts. Drives bg / fg / accent / muted. */
+  themeId: string;
+  /** Layout the card represents. */
+  variant: "hero" | "kpi" | "bullets";
+  kicker: string;
+  title: string;
+  subtitle?: string;
+  bullets?: string[];
+  kpi?: { value: string; label: string }[];
+  /** Footer line — looks like a real deck slug + page number. */
+  meta: string;
+  /** Faux page number, shown opposite the meta. */
+  page: string;
+};
+
+/**
+ * Three real-feeling slides spanning common deck archetypes:
+ *   1. Cobalt + bullets   — Q1 investor update
+ *   2. Emerald + KPIs     — Climate strategy
+ *   3. Crimson + hero     — Series A pitch
+ *
+ * Each maps to a real DECK_TEMPLATES theme so the colors are exactly
+ * what someone picking that template would see.
+ */
+const SLIDES: SlideSpec[] = [
+  {
+    themeId: "cobalt",
+    variant: "bullets",
+    kicker: "Q1 INVESTOR UPDATE",
+    title: "What changed this quarter",
+    bullets: [
+      "Net retention reached 124%",
+      "Three new enterprise logos signed",
+      "Hiring closed two senior engineers",
+    ],
+    meta: "ACME · Q1 2026",
+    page: "04 / 12",
+  },
+  {
+    themeId: "emerald",
+    variant: "kpi",
+    kicker: "BY THE NUMBERS",
+    title: "Climate strategy, year one.",
+    kpi: [
+      { value: "-42%",  label: "EMISSIONS" },
+      { value: "78%",   label: "SUPPLIERS" },
+      { value: "$4.2M", label: "INVESTED"  },
+    ],
+    meta: "PLEDGE 2026",
+    page: "03 / 08",
+  },
+  {
+    themeId: "crimson",
+    variant: "hero",
+    kicker: "SERIES A · 2026",
+    title: "Rebuilding logistics, software-first.",
+    subtitle: "From dispatch to delivery in one stack.",
+    meta: "PITCH",
+    page: "01 / 14",
+  },
 ];
 
 export default function GenerateOverlay({ open }: { open: boolean }) {
-  const [tick, setTick] = useState(0);
   const [lineIdx, setLineIdx] = useState(0);
 
   // Lock body scroll while the overlay is mounted.
@@ -39,28 +115,12 @@ export default function GenerateOverlay({ open }: { open: boolean }) {
     return () => { document.body.style.overflow = prev; };
   }, [open]);
 
-  // Animation tick (~30 fps) that drives the slide-card row fills.
-  useEffect(() => {
-    if (!open) return;
-    let raf = 0;
-    let last = performance.now();
-    const loop = (now: number) => {
-      if (now - last > 33) {
-        setTick((t) => t + 1);
-        last = now;
-      }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [open]);
-
-  // Rotate the status line every ~1.6s.
+  // Rotate the status line every 1.4s. Cheap — no per-frame work.
   useEffect(() => {
     if (!open) { setLineIdx(0); return; }
     const id = window.setInterval(() => {
       setLineIdx((i) => (i + 1) % ROTATING_LINES.length);
-    }, 1600);
+    }, 1400);
     return () => window.clearInterval(id);
   }, [open]);
 
@@ -74,75 +134,70 @@ export default function GenerateOverlay({ open }: { open: boolean }) {
       className="fixed inset-0 z-[300] flex items-center justify-center overflow-hidden"
       style={{
         background:
-          "radial-gradient(60% 50% at 50% 30%, rgba(124,92,255,0.32), transparent 70%), radial-gradient(40% 35% at 80% 80%, rgba(34,211,238,0.16), transparent 70%), #06060a",
+          "radial-gradient(60% 50% at 50% 30%, rgba(34,211,238,0.16), transparent 70%), radial-gradient(45% 38% at 85% 85%, rgba(14,116,144,0.32), transparent 70%), #050B17",
       }}
     >
-      <Grain />
-      <Orbs />
-      <Sparkles2 />
+      <BackdropGrid />
 
-      <div className="relative z-10 flex w-full max-w-3xl flex-col items-center px-6 text-center text-white">
+      <div className="relative z-10 flex w-full max-w-4xl flex-col items-center px-6 text-center text-white">
         {/* Brand pill */}
-        <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium text-white/80 backdrop-blur">
-          <Sparkles size={11} className="text-violet-300" />
+        <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-medium text-white/80 backdrop-blur">
+          <Sparkles size={11} className="text-cyan-300" />
           EZdeck · cooking up your deck
         </div>
 
-        {/* Gradient sweep title */}
+        {/* Headline */}
         <h2
-          className="mb-3 text-3xl font-semibold tracking-tight md:text-[40px]"
+          className="mb-2 font-semibold text-white"
           style={{
-            background:
-              "linear-gradient(110deg, #fff 0%, #fff 30%, rgba(196,181,253,0.95) 50%, #fff 70%, #fff 100%)",
-            backgroundSize: "300% 100%",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-            color: "transparent",
-            animation: "ezg-sweep 3.4s linear infinite",
+            fontSize: "clamp(28px, 4vw, 40px)",
+            lineHeight: 1.04,
+            letterSpacing: "-0.025em",
           }}
         >
           Building your deck
         </h2>
 
         {/* Rotating one-liner */}
-        <div className="relative h-5 overflow-hidden text-sm text-white/60">
+        <div className="relative h-5 w-full max-w-md overflow-hidden text-[13px] text-white/55">
           {ROTATING_LINES.map((ln, i) => (
             <span
               key={i}
-              className="absolute inset-0 transition-all duration-500 ease-out"
-              style={{
-                opacity: i === lineIdx ? 1 : 0,
-                transform: i === lineIdx ? "translateY(0)" : "translateY(8px)",
-              }}
+              className="absolute inset-0 transition-opacity duration-500 ease-out"
+              style={{ opacity: i === lineIdx ? 1 : 0 }}
             >
               {ln}
             </span>
           ))}
         </div>
 
-        {/* Animated mini slide cards */}
-        <div className="my-10 flex h-44 items-end gap-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <MiniSlide key={i} index={i} tick={tick} />
+        {/* Stage with three slide cards */}
+        <div className="my-10 flex h-[260px] w-full items-end justify-center gap-3 sm:h-[280px]">
+          {SLIDES.map((slide, idx) => (
+            <BuildingSlide
+              key={idx}
+              slide={slide}
+              role={idx === 1 ? "front" : idx === 0 ? "back-left" : "back-right"}
+              offsetMs={CARD_OFFSETS_MS[idx]}
+            />
           ))}
         </div>
 
-        {/* Progress meter — indeterminate, smooth */}
-        <div className="relative mb-5 h-1 w-56 overflow-hidden rounded-full bg-white/10">
+        {/* Looping progress bar — pure CSS, GPU accelerated. */}
+        <div className="relative mb-3 h-[3px] w-60 overflow-hidden rounded-full bg-white/10">
           <div
-            className="absolute inset-y-0 w-1/3 rounded-full"
+            className="ezd-progress absolute inset-y-0 left-0 origin-left rounded-full"
             style={{
-              background:
-                "linear-gradient(90deg, transparent 0%, #c4b5fd 30%, #22d3ee 60%, transparent 100%)",
-              animation: "ezg-bar 1.4s cubic-bezier(.45,.05,.55,.95) infinite",
+              width: "100%",
+              background: "linear-gradient(90deg, #22D3EE, #67E8F9, #38BDF8)",
+              boxShadow: "0 0 16px rgba(34,211,238,0.55)",
             }}
           />
         </div>
 
         {/* AI badge */}
         <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/55">
-          <Wand2 size={11} className="text-violet-300" />
+          <Wand2 size={11} className="text-cyan-300" />
           Generated by AI · open-weight model
         </div>
 
@@ -151,222 +206,349 @@ export default function GenerateOverlay({ open }: { open: boolean }) {
         </p>
       </div>
 
+      {/* All animation timing lives here. transform + opacity only. */}
       <style jsx global>{`
-        @keyframes ezg-sweep {
-          0%   { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
+        /* Keyframe percentages are tuned against CYCLE_MS ms per cycle.
+           Phase budget (in % of cycle):
+              0-2    rest
+              2-12   paper appears
+              12-22  accent rail grows
+              22-32  kicker fades in
+              32-46  title fades in
+              46-72  body items fade in (staggered per element)
+              72-82  footer fades in
+              82-100 hold (everything sits at full state) */
+
+        @keyframes ezd-paper {
+          0%, 2%   { opacity: 0; transform: translateY(14px) scale(0.94); }
+          12%,100% { opacity: 1; transform: translateY(0)    scale(1); }
         }
-        @keyframes ezg-bar {
-          0%   { transform: translateX(-110%); }
-          100% { transform: translateX(310%); }
+
+        @keyframes ezd-rail {
+          0%, 12%   { transform: scaleX(0); }
+          22%, 100% { transform: scaleX(1); }
         }
-        @keyframes ezg-grain {
-          0%, 100% { transform: translate(0, 0); }
-          25%      { transform: translate(-10px, 5px); }
-          50%      { transform: translate(8px, -8px); }
-          75%      { transform: translate(-6px, -4px); }
+
+        @keyframes ezd-kicker {
+          0%, 22%   { opacity: 0; transform: translateY(4px); }
+          32%, 100% { opacity: 1; transform: translateY(0); }
         }
-        @keyframes ezg-float {
-          0%   { transform: translate(0, 0) scale(1); }
-          50%  { transform: translate(30px, -20px) scale(1.08); }
-          100% { transform: translate(0, 0) scale(1); }
+
+        @keyframes ezd-title {
+          0%, 32%   { opacity: 0; transform: translateY(6px); }
+          46%, 100% { opacity: 1; transform: translateY(0); }
         }
-        @keyframes ezg-spark {
-          0%   { transform: translateY(0) scale(0.4); opacity: 0; }
-          20%  { opacity: 1; }
-          100% { transform: translateY(-160px) scale(1); opacity: 0; }
+
+        @keyframes ezd-body {
+          0%, 46%   { opacity: 0; transform: translateY(6px); }
+          60%, 100% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Per-item stagger inside the body phase. Items at higher index
+           use a slightly later in/out point. */
+        @keyframes ezd-body-2 {
+          0%, 52%   { opacity: 0; transform: translateY(6px); }
+          66%, 100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes ezd-body-3 {
+          0%, 58%   { opacity: 0; transform: translateY(6px); }
+          72%, 100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes ezd-footer {
+          0%, 72%   { opacity: 0; }
+          82%, 100% { opacity: 1; }
+        }
+
+        @keyframes ezd-progress {
+          0%   { transform: scaleX(0); }
+          92%  { transform: scaleX(1); }
+          100% { transform: scaleX(1); }
+        }
+
+        /* Apply the cycle. The card root sets --d so child animations
+           can read it as their animation-delay (per-card stagger). */
+        .ezd-card    { will-change: transform; }
+        .ezd-paper   { animation: ezd-paper   ${CYCLE_MS}ms var(--d, 0ms) cubic-bezier(.2,.7,.2,1) infinite both; transform-origin: bottom; }
+        .ezd-rail    { animation: ezd-rail    ${CYCLE_MS}ms var(--d, 0ms) cubic-bezier(.2,.7,.2,1) infinite both; transform-origin: left;   }
+        .ezd-kicker  { animation: ezd-kicker  ${CYCLE_MS}ms var(--d, 0ms) cubic-bezier(.2,.7,.2,1) infinite both; }
+        .ezd-title   { animation: ezd-title   ${CYCLE_MS}ms var(--d, 0ms) cubic-bezier(.2,.7,.2,1) infinite both; }
+        .ezd-body    { animation: ezd-body    ${CYCLE_MS}ms var(--d, 0ms) cubic-bezier(.2,.7,.2,1) infinite both; }
+        .ezd-body-2  { animation: ezd-body-2  ${CYCLE_MS}ms var(--d, 0ms) cubic-bezier(.2,.7,.2,1) infinite both; }
+        .ezd-body-3  { animation: ezd-body-3  ${CYCLE_MS}ms var(--d, 0ms) cubic-bezier(.2,.7,.2,1) infinite both; }
+        .ezd-footer  { animation: ezd-footer  ${CYCLE_MS}ms var(--d, 0ms) cubic-bezier(.2,.7,.2,1) infinite both; }
+        .ezd-progress{ animation: ezd-progress ${CYCLE_MS}ms 0ms cubic-bezier(.45,.05,.55,.95) infinite both; transform-origin: left; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .ezd-paper, .ezd-rail, .ezd-kicker, .ezd-title,
+          .ezd-body, .ezd-body-2, .ezd-body-3, .ezd-footer,
+          .ezd-progress { animation: none; opacity: 1; transform: none; }
         }
       `}</style>
     </div>
   );
 }
 
-/* -------------------- mini slide card with row fills -------------------- */
+/* ------------------------------------------------------------------ *
+ *                          Building slide card                         *
+ * ------------------------------------------------------------------ */
 
-function MiniSlide({ index, tick }: { index: number; tick: number }) {
-  // Cards "appear" staggered: each card is hidden for the first
-  // `appearAfter` frames then animates in.
-  const appearAfter = index * 18;
-  const visible = tick > appearAfter;
+function BuildingSlide({
+  slide, role, offsetMs,
+}: {
+  slide: SlideSpec;
+  role: "front" | "back-left" | "back-right";
+  offsetMs: number;
+}) {
+  const theme = getTheme(slide.themeId);
+  if (!theme) return null;
 
-  // Each card holds 4 row bars. They fill in width over time, then refresh.
-  const rows = 4;
-  const cycleFrames = 80;
-  const localTick = Math.max(0, tick - appearAfter);
-  // Each row gets its own phase so they don't all fill in unison.
-  const rowProgress = (i: number) => {
-    const phase = ((localTick + i * 14) % cycleFrames) / cycleFrames;
-    // ease-out so the bar grows fast then settles
-    return Math.min(1, 0.15 + Math.pow(phase, 0.7));
-  };
+  const isFront = role === "front";
+  const cardWidth = isFront ? 320 : 230;
 
-  // Subtle vertical bob so the card feels alive.
-  const bob = Math.sin((tick + index * 8) / 12) * 1.5;
-
-  // Color theme per card — cycles through 5 picks.
-  const palette = [
-    { bar: "#a78bfa", glow: "rgba(167,139,250,0.55)" },
-    { bar: "#22d3ee", glow: "rgba(34,211,238,0.55)" },
-    { bar: "#f472b6", glow: "rgba(244,114,182,0.55)" },
-    { bar: "#34d399", glow: "rgba(52,211,153,0.55)" },
-    { bar: "#fcd34d", glow: "rgba(252,211,77,0.55)" },
-  ];
-  const c = palette[index % palette.length];
+  // Front card pops forward, back cards tilt and recede so the front
+  // reads as the hero.
+  const transform =
+    role === "front"     ? "translate(0,-12px) scale(1.05)" :
+    role === "back-left" ? "translate(0,10px)  scale(0.84) rotate(-3deg)" :
+                           "translate(0,10px)  scale(0.84) rotate(3deg)";
 
   return (
     <div
-      className="relative w-[92px] overflow-hidden rounded-xl border border-white/10 backdrop-blur"
+      className="ezd-card relative origin-bottom"
       style={{
-        height: 168,
-        background:
-          "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)",
-        boxShadow: `0 12px 32px -12px ${c.glow}`,
-        transform: `translateY(${visible ? bob : 16}px) scale(${visible ? 1 : 0.92})`,
-        opacity: visible ? 1 : 0,
-        transition: "transform 320ms cubic-bezier(.2,.7,.2,1), opacity 280ms ease",
+        width: cardWidth,
+        transform,
+        transition: "transform 800ms cubic-bezier(.2,.7,.2,1)",
+        // CSS variable for per-card animation delay. All children read
+        // this via animation-delay: var(--d).
+        ["--d" as any]: `${offsetMs}ms`,
       }}
     >
-      {/* Top accent bar */}
       <div
+        className="ezd-paper relative overflow-hidden rounded-md border shadow-[0_30px_60px_-25px_rgba(0,0,0,0.7)]"
         style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          height: 4,
-          width: "100%",
-          background: c.bar,
+          aspectRatio: "16/9",
+          background: theme.bg,
+          color: theme.fg,
+          borderColor: "rgba(140,179,230,0.28)",
+          fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
         }}
-      />
-      <div style={{ padding: 10, paddingTop: 14 }}>
-        {/* Title bar (taller, darker) */}
+      >
+        {/* Accent rail — top edge, grows left → right */}
         <div
-          style={{
-            height: 8,
-            width: "78%",
-            background: c.bar,
-            borderRadius: 3,
-            opacity: 0.85,
-          }}
+          className="ezd-rail absolute left-0 top-0 h-[3px] w-full"
+          style={{ background: theme.accent }}
         />
-        {/* Body row bars */}
-        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
-          {Array.from({ length: rows }).map((_, i) => (
+
+        {/* Side rail — left edge, decorative on bullets / kpi cards */}
+        {!isFront && (
+          <div
+            className="absolute left-0 top-0 h-full w-[2px]"
+            style={{ background: theme.accent, opacity: 0.4 }}
+          />
+        )}
+
+        {/* Kicker */}
+        <div
+          className="ezd-kicker absolute font-semibold uppercase"
+          style={{
+            left: "7%",
+            top: "13%",
+            color: theme.accent,
+            letterSpacing: "0.22em",
+            fontSize: isFront ? 8.5 : 7.5,
+          }}
+        >
+          {slide.kicker}
+        </div>
+
+        {/* Title */}
+        <div
+          className="ezd-title absolute font-semibold leading-[1.1]"
+          style={{
+            left: "7%",
+            right: "7%",
+            top: isFront ? "26%" : "24%",
+            color: theme.fg,
+            letterSpacing: "-0.012em",
+            fontSize: isFront ? 16 : 12.5,
+          }}
+        >
+          {slide.title}
+        </div>
+
+        {/* Body — bullets / KPI / hero subtitle */}
+        {slide.variant === "bullets" && slide.bullets && (
+          <div
+            className="absolute"
+            style={{ left: "7%", right: "7%", top: "55%" }}
+          >
+            {slide.bullets.slice(0, 3).map((b, i) => (
+              <div
+                key={i}
+                className={i === 0 ? "ezd-body" : i === 1 ? "ezd-body-2" : "ezd-body-3"}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 6,
+                  marginBottom: 6,
+                  fontSize: 9,
+                  lineHeight: 1.35,
+                  color: theme.fg,
+                }}
+              >
+                <span style={{ color: theme.accent, lineHeight: 1 }}>—</span>
+                <span style={{ opacity: 0.92 }}>{b}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {slide.variant === "kpi" && slide.kpi && (
+          <div
+            className="absolute"
+            style={{
+              left: "7%", right: "7%", top: "52%",
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr",
+              gap: 8,
+            }}
+          >
+            {slide.kpi.slice(0, 3).map((k, i) => (
+              <div
+                key={k.label}
+                className={i === 0 ? "ezd-body" : i === 1 ? "ezd-body-2" : "ezd-body-3"}
+              >
+                <div
+                  style={{
+                    color: theme.accent,
+                    fontSize: 18,
+                    fontWeight: 700,
+                    letterSpacing: "-0.02em",
+                    lineHeight: 1,
+                  }}
+                >
+                  {k.value}
+                </div>
+                <div
+                  style={{
+                    marginTop: 3,
+                    fontSize: 6,
+                    fontWeight: 700,
+                    letterSpacing: "0.18em",
+                    color: theme.muted,
+                  }}
+                >
+                  {k.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {slide.variant === "hero" && (
+          <>
+            {slide.subtitle && (
+              <div
+                className="ezd-body absolute"
+                style={{
+                  left: "7%",
+                  right: "7%",
+                  top: "57%",
+                  color: theme.muted,
+                  fontSize: 10.5,
+                  lineHeight: 1.4,
+                }}
+              >
+                {slide.subtitle}
+              </div>
+            )}
             <div
-              key={i}
+              className="ezd-body-2 absolute"
               style={{
-                height: 4,
-                width: `${(rowProgress(i) * (i % 2 === 0 ? 88 : 72)).toFixed(0)}%`,
-                background: "rgba(255,255,255,0.7)",
-                borderRadius: 2,
-                transition: "width 120ms linear",
+                left: "7%",
+                bottom: "20%",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 8,
+                fontWeight: 700,
+                letterSpacing: "0.22em",
+                color: theme.muted,
               }}
-            />
-          ))}
+            >
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 18,
+                  height: 2,
+                  background: theme.accent,
+                }}
+              />
+              ALEX CARTER, CEO
+            </div>
+          </>
+        )}
+
+        {/* Footer rule + slide number */}
+        <div
+          className="ezd-footer absolute"
+          style={{
+            left: "7%",
+            right: "7%",
+            bottom: "8%",
+          }}
+        >
+          <div
+            className="h-px"
+            style={{ background: theme.fg, opacity: 0.18 }}
+          />
+          <div
+            className="mt-1 flex items-center justify-between font-semibold"
+            style={{
+              fontSize: 7,
+              letterSpacing: "0.22em",
+              color: theme.muted,
+            }}
+          >
+            <span>{slide.meta}</span>
+            <span>{slide.page}</span>
+          </div>
         </div>
       </div>
-      {/* Soft glow */}
+
+      {/* Soft cyan glow under each card. Static — no animation. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0"
+        className="pointer-events-none absolute inset-x-4 -bottom-2 h-6 rounded-full blur-xl"
         style={{
-          background: `radial-gradient(80% 50% at 50% 100%, ${c.glow}, transparent 70%)`,
-          opacity: 0.6,
+          background: isFront ? "rgba(34,211,238,0.45)" : "rgba(34,211,238,0.18)",
         }}
       />
     </div>
   );
 }
 
-/* -------------------------- decorative layers -------------------------- */
+/* ------------------------------------------------------------------ *
+ *                              Backdrop                                 *
+ * ------------------------------------------------------------------ */
 
-function Grain() {
+function BackdropGrid() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-0 opacity-30 mix-blend-overlay"
+      className="pointer-events-none absolute inset-0"
       style={{
         backgroundImage:
-          "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n' x='0' y='0'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.4 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
-        backgroundSize: "160px 160px",
-        animation: "ezg-grain 4s steps(4) infinite",
+          "linear-gradient(rgba(140,179,230,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(140,179,230,0.10) 1px, transparent 1px)",
+        backgroundSize: "64px 64px",
+        maskImage:
+          "radial-gradient(ellipse at 50% 35%, black 0%, black 35%, transparent 80%)",
+        WebkitMaskImage:
+          "radial-gradient(ellipse at 50% 35%, black 0%, black 35%, transparent 80%)",
+        opacity: 0.4,
       }}
     />
-  );
-}
-
-function Orbs() {
-  return (
-    <>
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -left-32 -top-32 h-[420px] w-[420px] rounded-full"
-        style={{
-          background: "radial-gradient(circle, #7C5CFF 0%, transparent 70%)",
-          filter: "blur(60px)",
-          opacity: 0.55,
-          animation: "ezg-float 14s ease-in-out infinite",
-        }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-32 -right-32 h-[460px] w-[460px] rounded-full"
-        style={{
-          background: "radial-gradient(circle, #22d3ee 0%, transparent 70%)",
-          filter: "blur(60px)",
-          opacity: 0.45,
-          animation: "ezg-float 14s ease-in-out infinite",
-          animationDelay: "-4s",
-        }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute right-[15%] top-[30%] h-[260px] w-[260px] rounded-full"
-        style={{
-          background: "radial-gradient(circle, #f472b6 0%, transparent 70%)",
-          filter: "blur(60px)",
-          opacity: 0.4,
-          animation: "ezg-float 14s ease-in-out infinite",
-          animationDelay: "-8s",
-        }}
-      />
-    </>
-  );
-}
-
-/**
- * Floating sparkles. Twelve absolute-positioned dots that drift up and fade,
- * each on its own delay.
- */
-function Sparkles2() {
-  const dots = Array.from({ length: 14 }).map((_, i) => {
-    const left = (i * 73) % 100;
-    const delay = (i * 0.65) % 6;
-    const dur = 5 + (i % 4);
-    const size = 3 + (i % 3);
-    const tint = ["#c4b5fd", "#22d3ee", "#f472b6", "#fff"][i % 4];
-    return { left, delay, dur, size, tint, i };
-  });
-  return (
-    <>
-      {dots.map((d) => (
-        <span
-          key={d.i}
-          aria-hidden
-          className="pointer-events-none absolute"
-          style={{
-            left: `${d.left}%`,
-            bottom: "8%",
-            width: d.size,
-            height: d.size,
-            borderRadius: "50%",
-            background: d.tint,
-            boxShadow: `0 0 8px ${d.tint}`,
-            opacity: 0,
-            animation: `ezg-spark ${d.dur}s ease-out infinite`,
-            animationDelay: `${d.delay}s`,
-          }}
-        />
-      ))}
-    </>
   );
 }

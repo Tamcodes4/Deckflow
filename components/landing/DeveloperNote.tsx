@@ -59,7 +59,7 @@ export default function DeveloperNote() {
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        <Sparkles size={11} className="text-violet-300" />
+        <Sparkles size={11} className="text-cyan-300" />
         Developer's note
       </button>
 
@@ -70,11 +70,11 @@ export default function DeveloperNote() {
           className="fade-in fixed w-[320px] overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/95 shadow-[0_30px_80px_-10px_rgba(0,0,0,0.7)] backdrop-blur"
           style={{ top: pos.top, right: pos.right, zIndex: 1000 }}
         >
-          <div className="h-1 w-full bg-gradient-to-r from-violet-400 via-fuchsia-400 to-emerald-400" />
+          <div className="h-1 w-full bg-gradient-to-r from-cyan-300 via-cyan-500 to-sky-700" />
 
           <div className="p-5">
             <div className="flex items-start gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-base font-semibold text-white">
+              <div className="grid h-11 w-11 place-items-center rounded-full bg-gradient-to-br from-cyan-400 to-sky-700 text-base font-semibold text-white">
                 MI
               </div>
               <div className="min-w-0">

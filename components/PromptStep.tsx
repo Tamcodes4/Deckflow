@@ -93,7 +93,7 @@ export default function PromptStep(p: Props) {
       <div className="mb-8 flex flex-col items-start gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/65">
-            <Sparkles size={11} className="text-violet-300" /> New deck
+            <Sparkles size={11} className="text-cyan-300" /> New deck
           </div>
           <h1 className="text-3xl font-semibold tracking-tight md:text-[34px]">
             Tell me about the deck
@@ -181,9 +181,9 @@ export default function PromptStep(p: Props) {
             <button
               onClick={p.onUseTemplate}
               data-tour="templates"
-              className="group flex w-full items-start gap-3 rounded-2xl border border-white/10 bg-gradient-to-br from-violet-500/10 via-white/[0.02] to-transparent p-4 text-left transition hover:border-violet-300/40"
+              className="group flex w-full items-start gap-3 rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-500/10 via-white/[0.02] to-transparent p-4 text-left transition hover:border-cyan-300/40"
             >
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-violet-300/30 bg-violet-300/10 text-violet-200">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-cyan-300/30 bg-cyan-300/10 text-cyan-200">
                 <LayoutGrid size={15} />
               </span>
               <div className="min-w-0 flex-1">
@@ -248,7 +248,7 @@ export default function PromptStep(p: Props) {
                 type="checkbox"
                 checked={p.includeReferences}
                 onChange={(e) => p.setIncludeReferences(e.target.checked)}
-                className="mt-0.5 h-4 w-4 cursor-pointer accent-violet-500"
+                className="mt-0.5 h-4 w-4 cursor-pointer accent-cyan-400"
               />
               <div className="flex-1">
                 <div className="text-[12px] font-medium text-white">Add a references slide</div>

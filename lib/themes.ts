@@ -58,6 +58,10 @@ export const PRESET_THEMES: Theme[] = [
   { id: "plum",         name: "Plum",              bg: "#6D28D9", fg: "#FFFFFF", accent: "#F472B6", muted: "#DDD6FE", font: "sans"  },
   { id: "slate-bold",   name: "Slate Bold",        bg: "#1F2937", fg: "#FFFFFF", accent: "#F59E0B", muted: "#9CA3AF", font: "sans"  },
   { id: "coral-solid",  name: "Coral Solid",       bg: "#E55A4D", fg: "#FFFFFF", accent: "#1F2937", muted: "#FECACA", font: "sans"  },
+  // Pure obsidian — true black canvas with violet accent. Used by the
+  // "Obsidian Edge" template; useful on its own for engineering /
+  // security / deep-tech decks.
+  { id: "obsidian",     name: "Obsidian",          bg: "#0A0A0F", fg: "#FAFAFA", accent: "#A78BFA", muted: "#A1A1AA", font: "sans"  },
 ];
 
 export function getTheme(id: string): Theme | undefined {

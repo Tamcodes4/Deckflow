@@ -92,7 +92,7 @@ function AuthInner() {
         className="pointer-events-none absolute inset-0 opacity-70"
         style={{
           background:
-            "radial-gradient(50% 40% at 25% 30%, rgba(124,92,255,0.22), transparent 70%), radial-gradient(40% 35% at 80% 80%, rgba(34,197,94,0.10), transparent 70%)",
+            "radial-gradient(55% 45% at 25% 25%, rgba(34,211,238,0.18), transparent 70%), radial-gradient(45% 38% at 85% 85%, rgba(14,116,144,0.32), transparent 70%)",
         }}
       />
 
@@ -245,7 +245,7 @@ function AuthInner() {
           {/* Subtle decorations */}
           <div
             aria-hidden
-            className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-violet-500/15 blur-3xl"
+            className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cyan-500/15 blur-3xl"
           />
           <div
             aria-hidden
@@ -254,7 +254,7 @@ function AuthInner() {
 
           <div className="relative max-w-md">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/70">
-              <Sparkles size={11} className="text-violet-300" />
+              <Sparkles size={11} className="text-cyan-300" />
               Open source · free to try
             </div>
 
