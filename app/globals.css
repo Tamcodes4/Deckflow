@@ -2,35 +2,394 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+ * THEME TOKENS
+ *
+ * The site supports two themes — dark (default) and light. Tokens
+ * are exposed as CSS variables so any component can read them via
+ * `var(--ezd-...)`. Tailwind utility classes that hardcode the dark
+ * palette (text-white, bg-white/5, border-white/10, etc.) are
+ * overridden in the light block at the bottom of this file so we
+ * don't have to rewrite every component.
+ *
+ * Slide content is intentionally NOT themed — slides keep their
+ * per-deck themes (cobalt, sage, crimson, etc.) because those are
+ * user-authored design choices, not site chrome.
+ * ============================================================ */
+
 :root {
-  /* Navy-cyan palette — used by the landing chrome and any non-Tailwind
-     surfaces. Tailwind components reference these too via arbitrary
-     values where helpful. */
-  --bg: #050B17;
-  --bg-elev: #0A1628;
-  --fg: #E6EDF7;
-  --fg-muted: rgba(230, 237, 247, 0.62);
-  --fg-quiet: rgba(230, 237, 247, 0.38);
-  --hairline: rgba(140, 179, 230, 0.12);
-  --accent: #22D3EE;          /* cyan-400 */
-  --accent-soft: #67E8F9;     /* cyan-300 */
-  --accent-deep: #0891B2;     /* cyan-600 */
+  /* Site chrome (dark — current look) */
+  --ezd-bg-page:        #050B17;
+  --ezd-bg-page-deep:   #03070F;
+  --ezd-bg-elev:        #0A1628;
+  --ezd-bg-elev-strong: #040A14;
+  --ezd-bg-card:        rgba(255, 255, 255, 0.025);
+  --ezd-bg-hover:       rgba(255, 255, 255, 0.05);
+
+  --ezd-fg:             #E6EDF7;
+  --ezd-fg-strong:      #FFFFFF;
+  --ezd-fg-muted:       rgba(230, 237, 247, 0.65);
+  --ezd-fg-quiet:       rgba(230, 237, 247, 0.45);
+
+  --ezd-hairline:       rgba(140, 179, 230, 0.12);
+  --ezd-divider:        rgba(255, 255, 255, 0.10);
+
+  /* Accents — same on both themes; cyan reads on both backgrounds */
+  --ezd-accent:         #22D3EE;
+  --ezd-accent-soft:    #67E8F9;
+  --ezd-accent-deep:    #0891B2;
+
+  /* Inputs / borders / button-on-light */
+  --ezd-button-strong:  #FFFFFF;
+  --ezd-button-strong-fg: #03070F;
+
+  --ezd-scrollbar-thumb: rgba(255, 255, 255, 0.14);
+  --ezd-scrollbar-thumb-hover: rgba(255, 255, 255, 0.28);
+
+  /* Legacy aliases — kept so older components reading these don't break */
+  --bg: var(--ezd-bg-page);
+  --bg-elev: var(--ezd-bg-elev);
+  --fg: var(--ezd-fg);
+  --fg-muted: var(--ezd-fg-muted);
+  --fg-quiet: var(--ezd-fg-quiet);
+  --hairline: var(--ezd-hairline);
+  --accent: var(--ezd-accent);
+  --accent-soft: var(--ezd-accent-soft);
+  --accent-deep: var(--ezd-accent-deep);
 }
 
+/* ---------- LIGHT THEME ----------
+ * Triggered by `data-theme="light"` on <html>. The boot script in
+ * <head> sets this synchronously before paint to prevent flashing. */
+:root[data-theme="light"] {
+  --ezd-bg-page:        #F6F4EE;     /* warm cream — easier on eyes than pure white */
+  --ezd-bg-page-deep:   #ECEAE3;
+  --ezd-bg-elev:        #FFFFFF;
+  --ezd-bg-elev-strong: #FFFFFF;
+  --ezd-bg-card:        rgba(15, 23, 42, 0.025);
+  --ezd-bg-hover:       rgba(15, 23, 42, 0.045);
+
+  --ezd-fg:             #1A1F2E;
+  --ezd-fg-strong:      #03070F;
+  --ezd-fg-muted:       rgba(26, 31, 46, 0.72);
+  --ezd-fg-quiet:       rgba(26, 31, 46, 0.50);
+
+  --ezd-hairline:       rgba(15, 23, 42, 0.10);
+  --ezd-divider:        rgba(15, 23, 42, 0.12);
+
+  --ezd-button-strong:  #03070F;
+  --ezd-button-strong-fg: #FAFAF7;
+
+  --ezd-scrollbar-thumb: rgba(15, 23, 42, 0.20);
+  --ezd-scrollbar-thumb-hover: rgba(15, 23, 42, 0.38);
+}
+
+/* ============================================================
+ * Base shell — body color follows the theme via vars.
+ * ============================================================ */
+
 html, body {
-  background: var(--bg);
-  color: var(--fg);
+  background: var(--ezd-bg-page);
+  color: var(--ezd-fg);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Smooth crossfade when toggling — no flash, no harsh swap. */
+  transition: background-color 240ms ease, color 240ms ease;
 }
 
 * { box-sizing: border-box; }
+
+/* ============================================================
+ * Light-mode overrides for high-volume Tailwind utilities.
+ *
+ * Most of the existing UI was written with hardcoded dark colors
+ * (text-white, bg-white/5, border-white/10, etc.) before the theme
+ * system existed. Rather than rewrite every component, we override
+ * those utilities only when [data-theme="light"] is set on <html>.
+ *
+ * Specificity: `:root[data-theme="light"] .text-white` (0,1,2)
+ * beats Tailwind's `.text-white` (0,0,1,0), so we don't need
+ * !important except where Tailwind ships its own !-stages.
+ * ============================================================ */
+
+:root[data-theme="light"] .text-white { color: var(--ezd-fg-strong); }
+
+/* Common opacity steps used across the codebase. */
+:root[data-theme="light"] .text-white\/95 { color: rgba(3, 7, 15, 0.95); }
+:root[data-theme="light"] .text-white\/90 { color: rgba(3, 7, 15, 0.92); }
+:root[data-theme="light"] .text-white\/85 { color: rgba(3, 7, 15, 0.88); }
+:root[data-theme="light"] .text-white\/80 { color: rgba(3, 7, 15, 0.85); }
+:root[data-theme="light"] .text-white\/75 { color: rgba(3, 7, 15, 0.78); }
+:root[data-theme="light"] .text-white\/70 { color: rgba(3, 7, 15, 0.72); }
+:root[data-theme="light"] .text-white\/65 { color: rgba(3, 7, 15, 0.68); }
+:root[data-theme="light"] .text-white\/60 { color: rgba(3, 7, 15, 0.62); }
+:root[data-theme="light"] .text-white\/55 { color: rgba(3, 7, 15, 0.58); }
+:root[data-theme="light"] .text-white\/50 { color: rgba(3, 7, 15, 0.55); }
+:root[data-theme="light"] .text-white\/45 { color: rgba(3, 7, 15, 0.48); }
+:root[data-theme="light"] .text-white\/40 { color: rgba(3, 7, 15, 0.42); }
+:root[data-theme="light"] .text-white\/35 { color: rgba(3, 7, 15, 0.36); }
+:root[data-theme="light"] .text-white\/30 { color: rgba(3, 7, 15, 0.32); }
+:root[data-theme="light"] .text-white\/25 { color: rgba(3, 7, 15, 0.28); }
+:root[data-theme="light"] .text-white\/20 { color: rgba(3, 7, 15, 0.22); }
+:root[data-theme="light"] .text-white\/15 { color: rgba(3, 7, 15, 0.18); }
+
+/* Hover targets that flip back to full color */
+:root[data-theme="light"] .hover\:text-white:hover { color: var(--ezd-fg-strong); }
+
+/* Backgrounds — solid dark colors used as page fills */
+:root[data-theme="light"] .bg-black,
+:root[data-theme="light"] .bg-zinc-950,
+:root[data-theme="light"] .bg-zinc-900 {
+  background-color: var(--ezd-bg-page);
+}
+
+/* Translucent black surfaces — input fields, dim caps, label strips */
+:root[data-theme="light"] .bg-black\/30 { background-color: rgba(15, 23, 42, 0.04); }
+:root[data-theme="light"] .bg-black\/40 { background-color: rgba(255, 255, 255, 0.95); }
+:root[data-theme="light"] .bg-black\/50 { background-color: rgba(255, 255, 255, 0.92); }
+:root[data-theme="light"] .bg-black\/60 { background-color: rgba(255, 255, 255, 0.85); }
+:root[data-theme="light"] .bg-black\/70 { background-color: rgba(15, 23, 42, 0.45); }
+
+/* Form inputs / textareas / selects: explicit color + caret + placeholder
+   so the text the user types is actually readable. The `text-white` class
+   override above only catches inline classes, not the inherited color
+   on form elements that defaults to white in dark mode.
+   Scope to elements that opted into the dark theme so we don't disturb
+   slide-content inputs (those use their own theme tokens). */
+:root[data-theme="light"] input,
+:root[data-theme="light"] textarea,
+:root[data-theme="light"] select {
+  color: var(--ezd-fg);
+  caret-color: var(--ezd-fg);
+}
+:root[data-theme="light"] input::placeholder,
+:root[data-theme="light"] textarea::placeholder {
+  color: var(--ezd-fg-quiet);
+}
+/* When the input wraps in a "card" surface (bg-black/40), the
+   placeholder reads even quieter. Keep good contrast. */
+:root[data-theme="light"] .placeholder\:text-white\/30::placeholder { color: rgba(15, 23, 42, 0.40); }
+:root[data-theme="light"] .placeholder\:text-white\/35::placeholder { color: rgba(15, 23, 42, 0.45); }
+:root[data-theme="light"] .placeholder\:text-white\/40::placeholder { color: rgba(15, 23, 42, 0.50); }
+
+/* Modals / cards rendered with full bg-zinc-950 — give them paper-white surfaces */
+:root[data-theme="light"] .bg-zinc-950\/95,
+:root[data-theme="light"] .bg-zinc-950\/90,
+:root[data-theme="light"] .bg-zinc-950\/80,
+:root[data-theme="light"] .bg-zinc-950\/70,
+:root[data-theme="light"] .bg-zinc-950\/60 {
+  background-color: rgba(255, 255, 255, 0.95);
+}
+
+/* Glass / overlay backgrounds — `bg-white/N` becomes `bg-ink/N` */
+:root[data-theme="light"] .bg-white\/5    { background-color: rgba(15, 23, 42, 0.045); }
+:root[data-theme="light"] .bg-white\/10   { background-color: rgba(15, 23, 42, 0.080); }
+:root[data-theme="light"] .bg-white\/15   { background-color: rgba(15, 23, 42, 0.110); }
+:root[data-theme="light"] .bg-white\/20   { background-color: rgba(15, 23, 42, 0.140); }
+:root[data-theme="light"] .bg-white\/25   { background-color: rgba(15, 23, 42, 0.170); }
+
+/* Hover variants */
+:root[data-theme="light"] .hover\:bg-white\/5:hover  { background-color: rgba(15, 23, 42, 0.05); }
+:root[data-theme="light"] .hover\:bg-white\/10:hover { background-color: rgba(15, 23, 42, 0.08); }
+:root[data-theme="light"] .hover\:bg-white\/15:hover { background-color: rgba(15, 23, 42, 0.11); }
+:root[data-theme="light"] .hover\:bg-white\/20:hover { background-color: rgba(15, 23, 42, 0.14); }
+
+/* The arbitrary-value bg-white surfaces (for finer alpha steps used widely) */
+:root[data-theme="light"] [class*="bg-white\\/\\[0\\.015\\]"] { background-color: rgba(15, 23, 42, 0.020); }
+:root[data-theme="light"] [class*="bg-white\\/\\[0\\.02\\]"]  { background-color: rgba(15, 23, 42, 0.025); }
+:root[data-theme="light"] [class*="bg-white\\/\\[0\\.025\\]"] { background-color: rgba(15, 23, 42, 0.030); }
+:root[data-theme="light"] [class*="bg-white\\/\\[0\\.03\\]"]  { background-color: rgba(15, 23, 42, 0.035); }
+:root[data-theme="light"] [class*="bg-white\\/\\[0\\.04\\]"]  { background-color: rgba(15, 23, 42, 0.045); }
+:root[data-theme="light"] [class*="bg-white\\/\\[0\\.05\\]"]  { background-color: rgba(15, 23, 42, 0.060); }
+:root[data-theme="light"] [class*="bg-white\\/\\[0\\.06\\]"]  { background-color: rgba(15, 23, 42, 0.075); }
+:root[data-theme="light"] [class*="bg-white\\/\\[0\\.08\\]"]  { background-color: rgba(15, 23, 42, 0.090); }
+
+/* Hover counterparts for the finer alpha steps */
+:root[data-theme="light"] [class*="hover\\:bg-white\\/\\[0\\.04\\]"]:hover { background-color: rgba(15, 23, 42, 0.06); }
+:root[data-theme="light"] [class*="hover\\:bg-white\\/\\[0\\.05\\]"]:hover { background-color: rgba(15, 23, 42, 0.07); }
+:root[data-theme="light"] [class*="hover\\:bg-white\\/\\[0\\.06\\]"]:hover { background-color: rgba(15, 23, 42, 0.08); }
+
+/* Borders — opaque white at varying alphas → ink with lower alphas */
+:root[data-theme="light"] .border-white\/5  { border-color: rgba(15, 23, 42, 0.08); }
+:root[data-theme="light"] .border-white\/8  { border-color: rgba(15, 23, 42, 0.10); }
+:root[data-theme="light"] .border-white\/10 { border-color: rgba(15, 23, 42, 0.12); }
+:root[data-theme="light"] .border-white\/12 { border-color: rgba(15, 23, 42, 0.14); }
+:root[data-theme="light"] .border-white\/15 { border-color: rgba(15, 23, 42, 0.16); }
+:root[data-theme="light"] .border-white\/20 { border-color: rgba(15, 23, 42, 0.20); }
+:root[data-theme="light"] .border-white\/25 { border-color: rgba(15, 23, 42, 0.22); }
+:root[data-theme="light"] .border-white\/30 { border-color: rgba(15, 23, 42, 0.24); }
+:root[data-theme="light"] .border-white\/35 { border-color: rgba(15, 23, 42, 0.26); }
+:root[data-theme="light"] .border-white\/40 { border-color: rgba(15, 23, 42, 0.30); }
+:root[data-theme="light"] .border-white\/60 { border-color: rgba(15, 23, 42, 0.40); }
+
+:root[data-theme="light"] .hover\:border-white\/15:hover { border-color: rgba(15, 23, 42, 0.18); }
+:root[data-theme="light"] .hover\:border-white\/20:hover { border-color: rgba(15, 23, 42, 0.22); }
+:root[data-theme="light"] .hover\:border-white\/25:hover { border-color: rgba(15, 23, 42, 0.26); }
+:root[data-theme="light"] .hover\:border-white\/30:hover { border-color: rgba(15, 23, 42, 0.30); }
+:root[data-theme="light"] .hover\:border-white\/35:hover { border-color: rgba(15, 23, 42, 0.32); }
+:root[data-theme="light"] .hover\:border-white\/40:hover { border-color: rgba(15, 23, 42, 0.36); }
+
+/* Page background gradients — landing/auth/share/dashboard wrappers
+   build their navy gradients with arbitrary hex stops. Override
+   *those* gradient stops to a cream-paper gradient.
+   We attribute-match the className for the most common patterns. */
+:root[data-theme="light"]
+  [class*="from-[#03070F]"][class*="via-[#050B17]"][class*="to-[#03070F]"] {
+  background-image: linear-gradient(
+    to bottom,
+    var(--ezd-bg-page-deep) 0%,
+    var(--ezd-bg-page) 40%,
+    var(--ezd-bg-page) 60%,
+    var(--ezd-bg-page-deep) 100%
+  ) !important;
+}
+
+/* Dashboard sidebar uses a hardcoded near-black background. Flip it
+   to a soft warm-paper surface in light mode. */
+:root[data-theme="light"] [class*="bg-[#040A14]/90"],
+:root[data-theme="light"] [class*="bg-[#040A14]"] {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* Other hardcoded navy hex backgrounds throughout the codebase
+   (landing nav, dashboard, onboarding visual, slide-rail thumb tile,
+   how-it-works rail nodes). Make all of them paper-white in light. */
+:root[data-theme="light"] [class*="bg-[#050B17]/80"] {
+  background-color: rgba(255, 255, 255, 0.78) !important;
+}
+:root[data-theme="light"] [class*="bg-[#050B17]/90"] {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+}
+:root[data-theme="light"] [class*="bg-[#050B17]"] {
+  background-color: var(--ezd-bg-page) !important;
+}
+:root[data-theme="light"] [class*="bg-[#0A1628]/80"] {
+  background-color: rgba(255, 255, 255, 0.86) !important;
+}
+:root[data-theme="light"] [class*="bg-[#0A1628]"] {
+  background-color: var(--ezd-bg-elev) !important;
+}
+:root[data-theme="light"] [class*="bg-[#070F1F]"],
+:root[data-theme="light"] [class*="bg-[#06101F]"],
+:root[data-theme="light"] [class*="bg-[#03070F]"] {
+  background-color: var(--ezd-bg-elev) !important;
+}
+
+/* Navbar bottom-rule (hairline white border) reads inverted on cream */
+:root[data-theme="light"] .border-b-white\/8,
+:root[data-theme="light"] [class*="border-b-white/8"] {
+  border-bottom-color: rgba(15, 23, 42, 0.10) !important;
+}
+
+/* ----- Brand-accent text that loses contrast on cream -----
+   Tailwind's tinted text utilities are hardcoded to specific palette
+   values. The 100/200/300 shades are designed to read on dark
+   backgrounds and disappear on cream. Bump them to the corresponding
+   600/700 shades in light mode so they stay readable.
+
+   Cyan stays as the brand accent — make it the deeper variant so the
+   present button, kicker text, and accent links remain legible. */
+:root[data-theme="light"] .text-cyan-100  { color: #155E75; }   /* cyan-800 */
+:root[data-theme="light"] .text-cyan-200  { color: #0E7490; }   /* cyan-700 */
+:root[data-theme="light"] .text-cyan-300  { color: #0891B2; }   /* cyan-600 */
+:root[data-theme="light"] .text-cyan-300\/85 { color: rgba(8, 145, 178, 0.92); }
+:root[data-theme="light"] .text-cyan-300\/70 { color: rgba(8, 145, 178, 0.78); }
+
+:root[data-theme="light"] .text-emerald-200,
+:root[data-theme="light"] .text-emerald-300 { color: #047857; }
+:root[data-theme="light"] .text-amber-200,
+:root[data-theme="light"] .text-amber-300   { color: #B45309; }
+:root[data-theme="light"] .text-red-200,
+:root[data-theme="light"] .text-red-300     { color: #B91C1C; }
+:root[data-theme="light"] .text-violet-200,
+:root[data-theme="light"] .text-violet-300  { color: #6D28D9; }
+
+/* Tinted background-with-low-alpha pills (border-emerald-400/30
+   bg-emerald-400/10 text-emerald-200 etc.) — strengthen the surface
+   so the pill stays legible on cream. */
+:root[data-theme="light"] .bg-emerald-400\/10,
+:root[data-theme="light"] .bg-emerald-400\/15  { background-color: rgba(4, 120, 87, 0.12); }
+:root[data-theme="light"] .bg-emerald-400\/20  { background-color: rgba(4, 120, 87, 0.18); }
+:root[data-theme="light"] .border-emerald-400\/30 { border-color: rgba(4, 120, 87, 0.40); }
+:root[data-theme="light"] .border-emerald-400\/40 { border-color: rgba(4, 120, 87, 0.50); }
+:root[data-theme="light"] .hover\:bg-emerald-400\/20:hover { background-color: rgba(4, 120, 87, 0.18); }
+
+:root[data-theme="light"] .bg-cyan-300\/10,
+:root[data-theme="light"] .bg-cyan-300\/15   { background-color: rgba(8, 145, 178, 0.12); }
+:root[data-theme="light"] .bg-cyan-300\/20   { background-color: rgba(8, 145, 178, 0.18); }
+:root[data-theme="light"] .bg-cyan-500\/10   { background-color: rgba(8, 145, 178, 0.12); }
+:root[data-theme="light"] .bg-cyan-500\/15   { background-color: rgba(8, 145, 178, 0.18); }
+:root[data-theme="light"] .border-cyan-300\/30 { border-color: rgba(8, 145, 178, 0.42); }
+:root[data-theme="light"] .border-cyan-300\/40 { border-color: rgba(8, 145, 178, 0.50); }
+:root[data-theme="light"] .border-cyan-300\/60 { border-color: rgba(8, 145, 178, 0.65); }
+
+:root[data-theme="light"] .bg-amber-300\/10,
+:root[data-theme="light"] .bg-amber-300\/15  { background-color: rgba(180, 83, 9, 0.12); }
+:root[data-theme="light"] .border-amber-300\/30 { border-color: rgba(180, 83, 9, 0.40); }
+:root[data-theme="light"] .border-amber-400\/30 { border-color: rgba(180, 83, 9, 0.42); }
+:root[data-theme="light"] .bg-amber-400\/10  { background-color: rgba(180, 83, 9, 0.10); }
+:root[data-theme="light"] .bg-amber-400\/15  { background-color: rgba(180, 83, 9, 0.16); }
+
+:root[data-theme="light"] .bg-red-400\/8,
+:root[data-theme="light"] .bg-red-500\/10    { background-color: rgba(185, 28, 28, 0.10); }
+:root[data-theme="light"] .border-red-400\/30,
+:root[data-theme="light"] .border-red-500\/30,
+:root[data-theme="light"] .border-red-500\/40 { border-color: rgba(185, 28, 28, 0.45); }
+
+/* Cyan glow ring on the dashboard sidebar's quota meter / nav links —
+   the soft 8-percent backgrounds need a touch more presence on cream. */
+:root[data-theme="light"] [class*="bg-cyan-300/8"]  { background-color: rgba(8, 145, 178, 0.08); }
+:root[data-theme="light"] [class*="bg-emerald-300/8"],
+:root[data-theme="light"] [class*="bg-emerald-400/8"] { background-color: rgba(4, 120, 87, 0.08); }
+:root[data-theme="light"] [class*="bg-amber-300/8"] { background-color: rgba(180, 83, 9, 0.08); }
+:root[data-theme="light"] [class*="bg-red-400/8"]   { background-color: rgba(185, 28, 28, 0.08); }
+
+/* Landing page uses a fixed inline navy via inline `style` on <main>.
+   Also hardcoded zinc/black backgrounds in modals and the editor
+   scaffold. None of those are class-driven so we tackle them at the
+   component level for the landing page (style prop is reactive to
+   theme via the useTheme hook). */
+
+/* Dividers used as inline gradient bars (e.g. "from-transparent via-white/10 to-transparent") */
+:root[data-theme="light"]
+  [class*="via-white/10"][class*="to-transparent"] {
+  background-image: linear-gradient(
+    to right,
+    transparent,
+    rgba(15, 23, 42, 0.12),
+    transparent
+  ) !important;
+}
+
+/* The white CTA button keeps its prominence: invert in light mode so it
+   doesn't disappear into the cream background. Be careful — `bg-white`
+   is also used in places where the white IS desired (e.g. the editor's
+   slide canvas, mock slides). Only invert when paired with a dark text
+   class so we know it's a button. */
+:root[data-theme="light"] .bg-white.text-\[\#03070F\],
+:root[data-theme="light"] .bg-white.text-black {
+  background-color: var(--ezd-button-strong);
+  color: var(--ezd-button-strong-fg);
+}
+/* Dark-text-on-white hover paired with bg-white/90 — drop opacity step. */
+:root[data-theme="light"] .bg-white.text-\[\#03070F\]:hover,
+:root[data-theme="light"] .bg-white.text-black:hover {
+  background-color: rgba(3, 7, 15, 0.85);
+}
+/* Dedicated rule for "hover:bg-white/90" siblings of those buttons */
+:root[data-theme="light"] .bg-white.text-\[\#03070F\].hover\:bg-white\/90:hover,
+:root[data-theme="light"] .bg-white.text-black.hover\:bg-white\/90:hover {
+  background-color: rgba(3, 7, 15, 0.85);
+}
+
+/* Cyan-glow shadows on dark turn into colored cyan shadows on light too —
+   they read fine. No override needed. */
 
 /* ----------------------------- Minimal scrollbar ----------------------------
    Replaces the chunky Windows scrollbar everywhere. Thin track, subtle thumb,
    no arrow buttons or corner resizer artifacts. */
 * {
   scrollbar-width: thin;                        /* Firefox */
-  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  scrollbar-color: var(--ezd-scrollbar-thumb) transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
@@ -40,13 +399,13 @@ html, body {
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--ezd-scrollbar-thumb);
   border-radius: 8px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.28);
+  background: var(--ezd-scrollbar-thumb-hover);
   background-clip: padding-box;
 }
 *::-webkit-scrollbar-corner,
@@ -64,4 +423,3 @@ textarea {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-

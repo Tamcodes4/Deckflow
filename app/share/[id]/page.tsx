@@ -89,7 +89,7 @@ export default function ShareViewer({ params }: { params: { id: string } }) {
   if (missing) {
     return (
       <main className="grid min-h-screen place-items-center px-6 text-center text-white"
-            style={{ background: "#050B17" }}>
+            style={{ background: "var(--ezd-bg-page)" }}>
         <div className="max-w-md">
           <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full border border-white/10 bg-white/5">
             <LinkIcon size={18} className="text-white/55" />
@@ -109,7 +109,7 @@ export default function ShareViewer({ params }: { params: { id: string } }) {
   if (!data) {
     return (
       <main className="grid min-h-screen place-items-center text-sm text-white/60"
-            style={{ background: "#050B17" }}>
+            style={{ background: "var(--ezd-bg-page)" }}>
         Loading…
       </main>
     );
@@ -147,7 +147,7 @@ export default function ShareViewer({ params }: { params: { id: string } }) {
   return (
     <main
       className="min-h-screen text-white"
-      style={{ background: "#050B17" }}
+      style={{ background: "var(--ezd-bg-page)" }}
     >
       {/* Full-screen presenter overlay */}
       {presenting && (

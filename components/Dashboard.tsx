@@ -11,6 +11,7 @@ import { getFirebaseDb } from "@/lib/firebase";
 import { onValue, ref } from "firebase/database";
 import DeckThumbnail from "./DeckThumbnail";
 import Logo from "./Logo";
+import ThemeToggle from "./ThemeToggle";
 import {
   DAILY_GENERATION_LIMIT, formatRefillIn, watchTodayGenerations,
 } from "@/lib/usage";
@@ -110,7 +111,10 @@ export default function Dashboard({
     <div className="min-h-screen lg:pl-[260px]">
       {/* ============== Sidebar ============== */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[260px] flex-col border-r border-white/10 bg-[#040A14]/90 p-5 backdrop-blur lg:flex">
-        <Logo size="md" />
+        <div className="flex items-center justify-between">
+          <Logo size="md" />
+          <ThemeToggle variant="compact" />
+        </div>
 
         <nav className="mt-7 space-y-0.5 text-sm">
           <NavItem icon={<Home size={14} />} label="Dashboard" active />

@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import MobileGate from "@/components/MobileGate";
+import { THEME_BOOT_SCRIPT } from "@/lib/theme";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://deckflow-pi.vercel.app"),
@@ -58,8 +59,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Theme boot — runs synchronously before paint to set
+            data-theme on <html> so light-mode users don't see a
+            dark flash on load. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         {/* Preconnect speeds up the first paint of any font we end up using. */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

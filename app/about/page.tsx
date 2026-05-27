@@ -23,8 +23,8 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <main
-      className="relative min-h-screen text-[#E6EDF7]"
-      style={{ background: "#050B17" }}
+      className="relative min-h-screen"
+      style={{ background: "var(--ezd-bg-page)", color: "var(--ezd-fg)" }}
     >
       {/* Header */}
       <header className="border-b border-white/10">

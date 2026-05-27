@@ -7,6 +7,7 @@ import {
   LogOut, Shapes, Sparkles, Wand2,
 } from "lucide-react";
 import Logo from "@/components/Logo";
+import ThemeToggle from "@/components/ThemeToggle";
 import {
   dailyActiveUsers, totalDecksGenerated, decksToday, trackEvent,
 } from "@/lib/stats";
@@ -62,8 +63,8 @@ export default function LandingPage() {
 
   return (
     <main
-      className="relative min-h-screen overflow-x-hidden text-[#E6EDF7]"
-      style={{ background: "#050B17" }}
+      className="relative min-h-screen overflow-x-hidden"
+      style={{ background: "var(--ezd-bg-page)", color: "var(--ezd-fg)" }}
     >
       <BackgroundField />
 
@@ -106,6 +107,7 @@ export default function LandingPage() {
             <Link href="/about" className="transition hover:text-white">Dev&rsquo;s note</Link>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle variant="pill" />
             {user ? (
               <button
                 onClick={onSignOut}
@@ -818,7 +820,14 @@ function BackgroundField() {
           filter: "blur(30px)",
         }}
       />
-      <div className="absolute inset-x-0 bottom-0 h-[28vh] bg-gradient-to-t from-[#03070F] via-transparent to-transparent" />
+      <div
+        aria-hidden
+        className="absolute inset-x-0 bottom-0 h-[28vh]"
+        style={{
+          background:
+            "linear-gradient(to top, var(--ezd-bg-page-deep) 0%, transparent 100%)",
+        }}
+      />
     </div>
   );
 }
