@@ -4,6 +4,7 @@ import type { Deck, Slide, SlideLayout } from "@/lib/types";
 import type { Theme } from "@/lib/themes";
 import SlideCanvas from "./SlideCanvas";
 import { Plus, Copy, Trash2, ArrowUp, ArrowDown, X } from "lucide-react";
+import { stripHtml } from "@/lib/richText";
 
 const ADD_SLIDE_TIP_KEY = "deckflow_add_slide_tip_seen_v1";
 
@@ -156,7 +157,7 @@ export default function SlideRail({ deck, theme, active, setActive, onChange }: 
             </div>
             <div className="flex items-center justify-between bg-black/40 px-2 py-1 text-[10px] text-white/60">
               <span className="truncate">
-                {i + 1}. {s.title || (s.layout === "references" ? "References" : "Untitled")}
+                {i + 1}. {stripHtml(s.title) || (s.layout === "references" ? "References" : "Untitled")}
               </span>
             </div>
           </button>

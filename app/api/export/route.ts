@@ -9,6 +9,7 @@ import {
 import { getGraphic, svgToDataUri } from "@/lib/graphics";
 import { decorationDataUri, applyDecorationOverrides } from "@/lib/decorations";
 import { iconifySvgUrl } from "@/lib/iconify";
+import { stripHtml } from "@/lib/richText";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -651,7 +652,21 @@ export async function POST(req: NextRequest) {
     const total = deck.slides.length;
     const graphic = getGraphic(deck.graphic);
     for (let i = 0; i < total; i++) {
-      const slide = deck.slides[i];
+      // Strip inline HTML before handing to pptxgenjs. Long-term we
+      // could parse the rich-text spans into pptx text-runs; for now
+      // export is plain text so the slide doesn't ship literal "<b>" tags.
+      const raw = deck.slides[i];
+      const slide: Slide = {
+        ...raw,
+        title:    stripHtml(raw.title || ""),
+        subtitle: raw.subtitle != null ? stripHtml(raw.subtitle) : raw.subtitle,
+        body:     raw.body     != null ? stripHtml(raw.body)     : raw.body,
+        kicker:   raw.kicker   != null ? stripHtml(raw.kicker)   : raw.kicker,
+        bullets:  raw.bullets  ? raw.bullets.map((b) => stripHtml(b || "")) : raw.bullets,
+        annotations: raw.annotations
+          ? raw.annotations.map((a) => ({ ...a, text: stripHtml(a.text || "") }))
+          : raw.annotations,
+      };
       const eff = effectiveTheme(theme, slide);
       let s: PptxGenJS.Slide;
       switch (slide.layout) {

@@ -11,6 +11,7 @@ import {
   isHidden, FONT_SIZE_PRESETS, explicitFontSize,
 } from "@/lib/layoutMath";
 import EditableText from "./EditableText";
+import TextFormatBar from "./TextFormatBar";
 import { getGraphic, svgToDataUri } from "@/lib/graphics";
 import { decorationDataUri, applyDecorationOverrides } from "@/lib/decorations";
 import { resolveFontFamily } from "@/lib/fonts";
@@ -123,6 +124,11 @@ export default function SlideCanvas({
         onSelectImage={onSelectImage}
       />
       <AnnotationLayer slide={slide} theme={effective} interactive={interactive} onUpdate={onUpdate} />
+      {/* Floating selection toolbar — appears over highlighted text in
+          any [data-editable] element on this canvas. Lives outside the
+          canvas DOM (rendered into document.body via fixed positioning)
+          so it can escape overflow:hidden boundaries. */}
+      <TextFormatBar enabled={!!interactive} canvasRef={containerRef} />
     </div>
   );
 }
@@ -185,43 +191,90 @@ function Movable({
   const offset = slide.elementOffsets?.[id] || { dx: 0, dy: 0 };
   const [menuOpen, setMenuOpen] = useState(false);
   const [hover, setHover] = useState(false);
-  const dragRef = useRef<{ startX: number; startY: number; startDx: number; startDy: number } | null>(null);
+
+  // Direct ref to our wrapper element so the drag handler can mutate the
+  // CSS transform without going through React. Drag is one of the few
+  // places where bypassing React is the right call: we'd otherwise
+  // re-render the entire SlideCanvas (and re-run the floating-toolbar
+  // selection observer) on every pointermove, which made dragging stutter.
+  const elRef = useRef<HTMLDivElement>(null);
+
+  // Drag state lives in refs so re-renders during a drag don't reset it.
+  // dragInchesRef tracks the live (in-flight) dx/dy in slide inches so
+  // we can read it on pointerup and commit a single state update.
+  const dragRef = useRef<{
+    startX: number; startY: number;
+    startDx: number; startDy: number;
+    pointerId: number;
+  } | null>(null);
+  const dragInchesRef = useRef<{ dx: number; dy: number } | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     if (!interactive || !onUpdate) return;
     const target = e.target as HTMLElement;
-    // If the click started inside an editable text or a no-drag handle,
-    // do nothing — let the inner control receive normal pointer events.
     if (target.closest("[data-no-drag]")) return;
-    // Same for any contentEditable element so caret placement always wins.
     if (target.isContentEditable) return;
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = {
       startX: e.clientX, startY: e.clientY,
       startDx: offset.dx, startDy: offset.dy,
+      pointerId: e.pointerId,
     };
+    dragInchesRef.current = { dx: offset.dx, dy: offset.dy };
+    if (elRef.current) elRef.current.style.cursor = "grabbing";
   }, [interactive, onUpdate, offset.dx, offset.dy]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current || !canvasRef.current || !onUpdate) return;
+    if (!dragRef.current || !canvasRef.current || !elRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const inPerPx = SLIDE_W_IN / rect.width;
-    const dx = dragRef.current.startDx + (e.clientX - dragRef.current.startX) * inPerPx;
-    const dy = dragRef.current.startDy + (e.clientY - dragRef.current.startY) * inPerPx;
-    onUpdate({
-      elementOffsets: { ...(slide.elementOffsets || {}), [id]: {
-        dx: clamp(dx, -SLIDE_W_IN, SLIDE_W_IN),
-        dy: clamp(dy, -SLIDE_H_IN, SLIDE_H_IN),
-      } },
+    const dx = clamp(
+      dragRef.current.startDx + (e.clientX - dragRef.current.startX) * inPerPx,
+      -SLIDE_W_IN, SLIDE_W_IN,
+    );
+    const dy = clamp(
+      dragRef.current.startDy + (e.clientY - dragRef.current.startY) * inPerPx,
+      -SLIDE_H_IN, SLIDE_H_IN,
+    );
+    dragInchesRef.current = { dx, dy };
+
+    // Throttle DOM writes to one per animation frame. The browser would
+    // batch them anyway, but pinning to rAF keeps things buttery smooth
+    // and avoids redundant work when the user moves the pointer fast.
+    if (rafRef.current != null) return;
+    rafRef.current = window.requestAnimationFrame(() => {
+      rafRef.current = null;
+      const node = elRef.current;
+      const cur = dragInchesRef.current;
+      if (!node || !cur) return;
+      // Combine the static base transform with the live offset.
+      const offsetTransform = `translate(${cur.dx * IN}cqw, ${cur.dy * IN}cqw)`;
+      const baseTransform = (baseStyle.transform || "").trim();
+      node.style.transform = [baseTransform, offsetTransform].filter(Boolean).join(" ");
     });
-  }, [canvasRef, onUpdate, slide.elementOffsets, id]);
+  }, [canvasRef, baseStyle.transform]);
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current) return;
+    const finalOffset = dragInchesRef.current;
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     dragRef.current = null;
-  }, []);
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (elRef.current) elRef.current.style.cursor = "grab";
+
+    // Commit the final offset to deck state in a single update. If the
+    // user didn't actually move, skip the update so we don't churn React.
+    if (!onUpdate || !finalOffset) return;
+    if (finalOffset.dx === offset.dx && finalOffset.dy === offset.dy) return;
+    onUpdate({
+      elementOffsets: { ...(slide.elementOffsets || {}), [id]: finalOffset },
+    });
+  }, [onUpdate, offset.dx, offset.dy, slide.elementOffsets, id]);
 
   const setSize = (size: number) => onUpdate?.({
     elementFontSizes: { ...(slide.elementFontSizes || {}), [id]: size },
@@ -239,8 +292,6 @@ function Movable({
 
   const onContextMenu = (e: React.MouseEvent) => {
     if (!interactive || !onUpdate) return;
-    // Don't hijack the browser context menu while the user is editing text —
-    // they may want copy/paste/spellcheck.
     const target = e.target as HTMLElement;
     if (target.isContentEditable) return;
     e.preventDefault();
@@ -250,6 +301,7 @@ function Movable({
 
   return (
     <div
+      ref={elRef}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -257,13 +309,17 @@ function Movable({
       onContextMenu={onContextMenu}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      data-element-id={id}
       style={{
         ...baseStyle,
         transform: [(baseStyle.transform || ""), offsetTransform].filter(Boolean).join(" ").trim(),
         cursor: interactive ? "grab" : "default",
-        userSelect: interactive ? "none" : "auto",
+        userSelect: interactive ? "text" : "auto",
         outline: showControls ? `1px dashed ${theme.accent}80` : "none",
         outlineOffset: pt(4),
+        // Hint to the compositor that we'll be moving this element.
+        // Drops jank on Firefox especially.
+        willChange: interactive ? "transform" : undefined,
       }}
     >
       {children}

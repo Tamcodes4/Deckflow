@@ -1,40 +1,68 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Sparkles, X } from "lucide-react";
+import {
+  ArrowRight, Bold, ChevronDown, Italic, Palette, Sparkles, Type,
+  Underline as UnderlineIcon, X,
+} from "lucide-react";
 
 /**
- * Hand-rolled first-visit tour. Smooth animated ring + auto-scroll to
- * each step's target. Dependency-free.
+ * First-visit walkthrough.
  *
- * Behavior:
- *   - Shown once per browser; gated by localStorage.
- *   - Each step targets a `data-tour` attribute. We scroll the target into
- *     view, animate a highlight ring around it, and float a tooltip card
- *     adjacent. CSS transitions make the ring slide between steps.
- *   - If a step's target is missing, the tooltip centers on screen.
+ * Each step targets either a `data-tour` attribute on a real DOM node
+ * (with a highlight ring + tooltip), OR is a centered "info" step that
+ * has no target and shows a small visual inside the tooltip itself.
+ *
+ * Persistence: localStorage. The key is versioned so when we add new
+ * steps every existing user gets the updated tour exactly once. New
+ * users hit the same flow on their first visit. Once dismissed (or
+ * completed), the key flips and nobody sees the tour again until we
+ * bump the version.
  */
 
-const STORAGE_KEY = "deckflow_onboarding_v3";
+// v4 — added a step about the floating text-format toolbar. Bumping the
+// version so every user (including those who've seen the older tour)
+// gets the updated walkthrough once.
+const STORAGE_KEY = "deckflow_onboarding_v4";
 
-type StepId = "start-from-scratch" | "decks-list" | "my-decks-nav" | "upgrade-info";
+type StepId =
+  | "start-from-scratch"
+  | "format-text"   // centered info step
+  | "drag-anything" // centered info step
+  ;
 
 type Step = {
   id: StepId;
   title: string;
   body: string;
-  /** Element with this `data-tour` attribute is the anchor. */
-  target: StepId;
-  /** Preferred placement; auto-flips if there's no room. */
+  /** Element with this `data-tour` attribute is the anchor. Omit for a
+   *  centered modal step (used for general-purpose info that doesn't
+   *  point at one specific element). */
+  target?: StepId;
   placement?: "top" | "bottom" | "left" | "right";
+  /** Optional inline visual rendered above the body — useful for steps
+   *  that don't have a real DOM target to highlight. */
+  visual?: "format-toolbar" | "drag-handle";
 };
 
 const ALL_STEPS: Step[] = [
   {
     id: "start-from-scratch",
     title: "Make your first deck",
-    body: "Start with a brief — a sentence or two about the topic — and EZdeck generates a polished deck in about ten seconds. Edit anything inline once it's ready.",
+    body: "Type a one-line brief — topic, audience, tone — and EZdeck assembles a polished deck in about ten seconds.",
     target: "start-from-scratch",
     placement: "bottom",
+  },
+  {
+    id: "format-text",
+    title: "Format text with a selection",
+    body: "Once a deck is open, select any text in a title or bullet to bring up a floating toolbar. Bold, italic, underline, font size, color — same shortcuts as Notion or Docs.",
+    visual: "format-toolbar",
+  },
+  {
+    id: "drag-anything",
+    title: "Drag anything, anywhere",
+    body: "Click and drag any text box, image, chart, or icon to move it on the slide. Right-click for size, position, and visibility options.",
+    visual: "drag-handle",
   },
 ];
 
@@ -52,28 +80,32 @@ export default function OnboardingTour({ enabled = true }: { enabled?: boolean }
     let seen: string | null = null;
     try { seen = window.localStorage.getItem(STORAGE_KEY); } catch { /* ignore */ }
     if (seen) return;
-    // Small delay so the page can render before we measure targets.
     const t = window.setTimeout(() => {
       setOpen(true);
-      // Trigger a re-render after open so the entrance animation runs.
       window.requestAnimationFrame(() => setMounted(true));
     }, 700);
     return () => window.clearTimeout(t);
   }, [enabled]);
 
   const step = ALL_STEPS[stepIdx];
+  const targeted = !!step?.target;
 
-  // Whenever step changes, scroll the target into view and start tracking
-  // its bounding rect with a requestAnimationFrame loop. This keeps the
-  // ring and tooltip glued to the target even through layout shifts.
+  // For targeted steps, scroll the target into view and track its rect.
+  // For centered (info) steps, clear the rect so the tooltip renders in
+  // the middle without a highlight ring.
   useEffect(() => {
     if (!open) return;
+
+    if (!step?.target) {
+      setRect(null);
+      return;
+    }
+
     let cancelled = false;
 
     const findTarget = () =>
       document.querySelector(`[data-tour="${step.target}"]`) as HTMLElement | null;
 
-    // Smooth-scroll to the target so it's centered in the viewport.
     const el = findTarget();
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
@@ -81,7 +113,6 @@ export default function OnboardingTour({ enabled = true }: { enabled?: boolean }
       setRect(null);
     }
 
-    // Track rect every frame; cheap because it's just getBoundingClientRect.
     const tick = () => {
       if (cancelled) return;
       const e = findTarget();
@@ -89,7 +120,6 @@ export default function OnboardingTour({ enabled = true }: { enabled?: boolean }
         const r = e.getBoundingClientRect();
         setRect((prev) => {
           if (!prev) return r;
-          // Avoid no-op state updates when the rect is stable.
           if (prev.top === r.top && prev.left === r.left && prev.width === r.width && prev.height === r.height) {
             return prev;
           }
@@ -120,14 +150,13 @@ export default function OnboardingTour({ enabled = true }: { enabled?: boolean }
   };
   const prev = () => setStepIdx((s) => Math.max(0, s - 1));
 
-  // Compute tooltip position based on current rect + auto-flip.
   const tipStyle = useMemo<React.CSSProperties>(() => {
-    if (typeof window === "undefined") return { left: "50%", top: "50%", transform: "translate(-50%, -50%)" };
-    if (!rect) return { left: "50%", top: "50%", transform: "translate(-50%, -50%)" };
-    return positionTooltip(rect, step.placement || "bottom");
-  }, [rect, step.placement]);
+    if (typeof window === "undefined") return centerStyle();
+    if (!targeted || !rect) return centerStyle();
+    return positionTooltip(rect, step?.placement || "bottom");
+  }, [rect, step, targeted]);
 
-  if (!open) return null;
+  if (!open || !step) return null;
 
   return (
     <div
@@ -138,8 +167,7 @@ export default function OnboardingTour({ enabled = true }: { enabled?: boolean }
         transition: "opacity 220ms ease",
       }}
     >
-      {/* Dim layer behind everything. The hole is achieved with a separate
-          highlight box that punches a transparent rectangle on top. */}
+      {/* Dim layer */}
       <div
         aria-hidden
         style={{
@@ -148,15 +176,11 @@ export default function OnboardingTour({ enabled = true }: { enabled?: boolean }
           background: "rgba(5, 5, 7, 0.62)",
           backdropFilter: "blur(2px)",
         }}
-        onClick={(e) => { if (e.target === e.currentTarget) { /* don't dismiss on dim click */ } }}
       />
 
-      {/* Animated highlight ring + cutout. Both share the same animated
-          rect so they stay in sync. */}
-      {rect && (
+      {/* Highlight ring + cutout (only for targeted steps with a rect) */}
+      {targeted && rect && (
         <>
-          {/* Cutout: a perfectly-sized box with the page's background color
-              (transparent, since we use mix-blend-mode to "erase" the dim). */}
           <div
             aria-hidden
             style={{
@@ -173,7 +197,6 @@ export default function OnboardingTour({ enabled = true }: { enabled?: boolean }
               pointerEvents: "none",
             }}
           />
-          {/* Pulse ring for a touch of life. */}
           <div
             aria-hidden
             style={{
@@ -200,9 +223,9 @@ export default function OnboardingTour({ enabled = true }: { enabled?: boolean }
         key={step.id}
         style={{
           position: "fixed",
-          maxWidth: 340,
+          maxWidth: 380,
+          width: "calc(100vw - 32px)",
           ...tipStyle,
-          // Cross-fade the body when the step changes.
           animation: "deckflow-tour-tip 260ms ease",
         }}
         className="rounded-2xl border border-white/10 bg-zinc-950/95 p-5 shadow-2xl backdrop-blur"
@@ -222,7 +245,10 @@ export default function OnboardingTour({ enabled = true }: { enabled?: boolean }
         <h3 className="text-base font-semibold text-white">{step.title}</h3>
         <p className="mt-1.5 text-[13px] leading-relaxed text-white/65">{step.body}</p>
 
-        {/* Step indicator dots */}
+        {/* Inline visual — only for steps that don't highlight a real element */}
+        {step.visual === "format-toolbar" && <FormatToolbarVisual />}
+        {step.visual === "drag-handle" && <DragHandleVisual />}
+
         <div className="mt-4 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             {ALL_STEPS.map((_, i) => (
@@ -270,11 +296,107 @@ export default function OnboardingTour({ enabled = true }: { enabled?: boolean }
   );
 }
 
-/* --------------------------- helpers --------------------------- */
+/* --------------------------- inline visuals --------------------------- */
 
-const TIP_W = 340;
-const TIP_H_EST = 200;
+/** Mini preview of the floating selection toolbar — no live behavior,
+ *  just a static representation so the user knows what to expect. */
+function FormatToolbarVisual() {
+  return (
+    <div className="mt-4 rounded-xl border border-white/10 bg-[#06101F] p-4">
+      <div className="text-[11px] text-white/55">
+        <span className="bg-cyan-300/30 text-white/95">Highlight any text</span>{" "}
+        in a slide and a toolbar appears.
+      </div>
+      <div className="mt-3 inline-flex items-center gap-1 rounded-lg border border-white/15 bg-[#0A1628] p-1 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.7)]">
+        <FakeBtn icon={<Bold size={11} />} active />
+        <FakeBtn icon={<Italic size={11} />} />
+        <FakeBtn icon={<UnderlineIcon size={11} />} />
+        <Sep />
+        <FakeBtn icon={<Type size={11} />} extra={<ChevronDown size={9} className="opacity-60" />} />
+        <FakeBtn icon={<Palette size={11} />} extra={
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full border border-white/15"
+            style={{ background: "#22D3EE" }}
+          />
+        } />
+      </div>
+    </div>
+  );
+}
+
+function DragHandleVisual() {
+  return (
+    <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-[#FAFAF7] p-3">
+      <div
+        className="relative aspect-[16/9] w-full rounded-md"
+        style={{ background: "#FAFAF7" }}
+      >
+        <div className="absolute left-2 top-2 h-1 w-8 rounded-sm bg-cyan-700" />
+        <div
+          className="absolute left-2 top-5 rounded-sm border border-dashed bg-cyan-300/10 px-2 py-1 text-[10px] font-semibold text-slate-900"
+          style={{ borderColor: "rgba(34,211,238,0.6)" }}
+        >
+          Drag me
+        </div>
+        <div
+          className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full text-[8px] text-white"
+          style={{ background: "rgba(15,23,42,0.85)" }}
+          aria-hidden
+        >
+          ⋮
+        </div>
+        <div className="absolute bottom-2 left-2 right-2 grid grid-cols-1 gap-0.5 text-[8px] text-slate-700">
+          <div>— Drag any text box, image, or icon</div>
+          <div>— Right-click for size & visibility</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FakeBtn({
+  icon, active, extra,
+}: { icon: React.ReactNode; active?: boolean; extra?: React.ReactNode }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1 ${
+        active ? "border border-cyan-300/30 bg-cyan-300/15 text-cyan-100" : "text-white/80"
+      }`}
+    >
+      {icon}
+      {extra}
+    </span>
+  );
+}
+
+function Sep() {
+  return (
+    <span
+      aria-hidden
+      style={{
+        display: "inline-block",
+        width: 1,
+        height: 14,
+        background: "rgba(255,255,255,0.12)",
+        margin: "0 2px",
+      }}
+    />
+  );
+}
+
+/* --------------------------- positioning --------------------------- */
+
+const TIP_W = 380;
+const TIP_H_EST = 240;
 const MARGIN = 16;
+
+function centerStyle(): React.CSSProperties {
+  return {
+    left: "50%",
+    top: "50%",
+    transform: "translate(-50%, -50%)",
+  };
+}
 
 function positionTooltip(
   rect: DOMRect, preferred: "top" | "bottom" | "left" | "right",
@@ -289,8 +411,6 @@ function positionTooltip(
     right: vw - rect.right,
   };
 
-  // Auto-flip: if preferred placement doesn't have room, pick the side
-  // with the most space.
   const order = [preferred, "bottom", "top", "right", "left"] as const;
   let chosen: "top" | "bottom" | "left" | "right" = preferred;
   for (const p of order) {
@@ -302,7 +422,6 @@ function positionTooltip(
     if (enough) { chosen = p; break; }
   }
 
-  // Compute coords for the chosen side, clamped inside the viewport.
   switch (chosen) {
     case "top":
       return {

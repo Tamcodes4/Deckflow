@@ -1,13 +1,32 @@
 "use client";
 import { useEffect, useRef } from "react";
+import { sanitizeRichHtml } from "@/lib/richText";
 
 /**
  * Inline-editable text. Click to place the caret, type to edit.
- * Esc reverts; Enter commits unless `multiline` is true (then Shift+Enter is a newline,
- * Enter commits).
  *
- * Pointer events are stopped at this element so the surrounding draggable
- * Movable wrapper never captures clicks meant for the text.
+ * Stores rich text. The `value` and `onCommit(next)` strings can carry
+ * inline HTML (b / i / u / s / span style) emitted by the floating
+ * selection toolbar (see TextFormatBar). Sanitization runs on commit so
+ * we never persist unexpected markup, and the underlying plain text is
+ * what the rest of the app sees via `stripHtml()`.
+ *
+ * Keys:
+ *   Esc       — revert to last committed value, blur.
+ *   Enter     — commit + blur (single-line). With Shift, inserts a <br>.
+ *               Multi-line fields treat plain Enter as a newline and
+ *               commit only on blur.
+ *
+ * Subtle but important: we DO NOT use React's `dangerouslySetInnerHTML`
+ * on the editable span. React would rewrite the DOM on every parent
+ * re-render, even when `value` is unchanged, wiping any in-flight edits
+ * (including formatting applied by the floating toolbar) the moment the
+ * user does something else like drag a sibling element.
+ *
+ * Instead we mount once with `innerHTML = value` and keep the DOM in
+ * sync with `value` only inside an effect that compares the current DOM
+ * HTML against the new value. The effect skips while the editable is
+ * focused so we never fight the user's caret either.
  */
 export default function EditableText({
   value, onCommit, multiline, interactive, style, className,
@@ -20,30 +39,67 @@ export default function EditableText({
   className?: string;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
+  // Track whatever HTML we last wrote into the DOM. Compared against the
+  // incoming `value` so we only re-sync when the persisted string truly
+  // changed — never on cosmetic re-renders.
+  const lastWrittenRef = useRef<string>(value || "");
 
-  // Sync external value into the DOM when not focused. While focused we
-  // let the user's keystrokes own the content.
+  // First mount — write the initial HTML.
   useEffect(() => {
-    if (!ref.current) return;
-    if (document.activeElement !== ref.current) {
-      ref.current.textContent = value || "";
-    }
+    const el = ref.current;
+    if (!el) return;
+    el.innerHTML = value || "";
+    lastWrittenRef.current = value || "";
+    // First mount only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Subsequent value updates — only write if (a) the editable is not
+  // focused (so we don't clobber the caret) and (b) the new value
+  // genuinely differs from what we last wrote.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (document.activeElement === el) return;
+    const next = value || "";
+    if (lastWrittenRef.current === next) return;
+    el.innerHTML = next;
+    lastWrittenRef.current = next;
   }, [value]);
 
   if (!interactive) {
-    return <span style={style} className={className}>{value}</span>;
+    // Read-only render: trust value as already-sanitized HTML.
+    return (
+      <span
+        style={style}
+        className={className}
+        dangerouslySetInnerHTML={{ __html: value || "" }}
+      />
+    );
   }
 
   const commit = () => {
     if (!ref.current) return;
-    const next = (ref.current.textContent || "").replace(/\s+$/g, "");
-    if (next !== (value || "")) onCommit(next);
+    const raw = ref.current.innerHTML || "";
+    const next = sanitizeRichHtml(raw).replace(/&nbsp;/g, " ").trim();
+    if (next !== (value || "")) {
+      lastWrittenRef.current = next;
+      onCommit(next);
+    } else {
+      // Even a no-op commit should refresh our reference so any
+      // browser-injected <br>/&nbsp; cleanups on this exact render
+      // don't trick the next sync into re-writing.
+      lastWrittenRef.current = next;
+    }
   };
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
       e.preventDefault();
-      if (ref.current) ref.current.textContent = value || "";
+      if (ref.current) {
+        ref.current.innerHTML = value || "";
+        lastWrittenRef.current = value || "";
+      }
       ref.current?.blur();
       return;
     }
@@ -60,6 +116,7 @@ export default function EditableText({
     <span
       ref={ref}
       data-no-drag
+      data-editable
       contentEditable
       suppressContentEditableWarning
       spellCheck={false}
@@ -71,18 +128,14 @@ export default function EditableText({
       onDoubleClick={stop}
       onBlur={commit}
       onKeyDown={onKey}
-      title="Click to edit"
+      title="Click to edit. Select text to format."
       className={className}
       style={{
         outline: "none",
         whiteSpace: multiline ? "pre-wrap" : "normal",
         cursor: "text",
-        // The text needs to receive all the events; Movable still owns the
-        // empty padding around it.
         ...style,
       }}
-    >
-      {value || ""}
-    </span>
+    />
   );
 }

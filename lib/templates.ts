@@ -46,6 +46,35 @@ export type DeckTemplate = {
 
 export const DECK_TEMPLATES: DeckTemplate[] = [
   /* ============================================================
+   * SAGE & BLUSH — newest addition. Soft, organic, editorial.
+   * Pairs the new "organic-sage" graphic with a sage + blush
+   * theme and Fraunces, set to detailed density for long-form
+   * decks. Lands first on the gallery's first page.
+   * ============================================================ */
+  {
+    id: "sage-blush",
+    name: "Sage & Blush",
+    tagline: "Soft organic shapes, sage and blush, gentle gold rings. Editorial calm.",
+    category: "Editorial",
+    themeId: "sage-blush",
+    fontId: "fraunces",
+    graphicId: "organic-sage",
+    density: "detailed",
+    includeReferences: true,
+    samplePrompt: "A reflective long-form essay on craftsmanship in software, written for a senior engineering audience.",
+    variants: {
+      titleVariant: "underlined",
+      bulletsVariant: "dashed",
+      twoColumnVariant: "divider",
+      tableVariant: "minimal",
+      quoteVariant: "editorial",
+      sectionVariant: "minimal",
+      closingVariant: "signature",
+    },
+    isNew: true,
+  },
+
+  /* ============================================================
    * NEW HERO SET — six saturated, high-impact templates designed
    * to ship together. Bold backgrounds, bright contrasting accents,
    * white text everywhere so legibility is guaranteed across every

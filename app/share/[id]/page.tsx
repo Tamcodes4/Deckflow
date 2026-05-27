@@ -11,6 +11,7 @@ import Logo from "@/components/Logo";
 import type { Deck } from "@/lib/types";
 import type { Theme } from "@/lib/themes";
 import { loadSharedDeck } from "@/lib/decks";
+import { stripHtml } from "@/lib/richText";
 
 /**
  * Shared deck viewer.
@@ -419,7 +420,7 @@ function SlideRailReadOnly({
                 </div>
                 <div className="flex items-center justify-between bg-black/40 px-2 py-1 text-[10px] text-white/60">
                   <span className="truncate">
-                    {String(i + 1).padStart(2, "0")} · {s.title || (s.layout === "references" ? "References" : "Untitled")}
+                    {String(i + 1).padStart(2, "0")} · {stripHtml(s.title) || (s.layout === "references" ? "References" : "Untitled")}
                   </span>
                 </div>
               </button>

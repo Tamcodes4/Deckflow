@@ -1,4 +1,5 @@
 import type { Slide, ElementId } from "./types";
+import { stripHtml } from "./richText";
 
 export const SLIDE_W_IN = 13.333;
 export const SLIDE_H_IN = 7.5;
@@ -30,7 +31,7 @@ export function titleSize(text: string, layout: Slide["layout"], slide?: Slide):
   const explicit = explicitFontSize(slide, "title");
   if (explicit) return explicit;
 
-  const len = (text || "").length;
+  const len = stripHtml(text || "").length;
   const hero = layout === "title-hero" || layout === "section" || layout === "closing";
 
   let base: number;
@@ -69,7 +70,7 @@ export function bulletSize(count: number, slide?: Slide): number {
   // Step 2: shrink further if any bullet is long. Stops content from
   // overflowing the slide canvas in detailed/comprehensive density.
   const longest = (slide?.bullets || []).reduce(
-    (m, b) => Math.max(m, (b || "").length),
+    (m, b) => Math.max(m, stripHtml(b || "").length),
     0,
   );
   if (longest > 160) base = Math.min(base, 14);
@@ -82,7 +83,7 @@ export function bulletSize(count: number, slide?: Slide): number {
 export function quoteSize(text: string, slide?: Slide): number {
   const explicit = explicitFontSize(slide, "quote");
   if (explicit) return explicit;
-  const words = (text || "").split(/\s+/).length;
+  const words = stripHtml(text || "").split(/\s+/).filter(Boolean).length;
   let base: number;
   if (words <= 8)  base = 54;
   else if (words <= 16) base = 42;
@@ -95,7 +96,7 @@ export function bodySize(slide?: Slide): number {
   const explicit = explicitFontSize(slide, "body");
   if (explicit) return explicit;
   // Shrink if the body is long — keeps quote / section text in-bounds.
-  const len = (slide?.body || slide?.title || "").length;
+  const len = stripHtml(slide?.body || slide?.title || "").length;
   let base = 18;
   if (len > 240) base = 14;
   else if (len > 160) base = 16;

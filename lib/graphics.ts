@@ -405,10 +405,173 @@ const editorialGrid: Graphic = {
   contentSafe: true,
 };
 
-/* ------------------------------ catalog ----------------------------------- */
+/* --------------------------- soft / organic ------------------------------ */
+
+const organicSage: Graphic = {
+  id: "organic-sage",
+  name: "Soft sage blobs",
+  render: (t) => {
+    // The graphic owns its decorative palette — sage tones come from
+    // theme.accent so it adapts when other themes pick this graphic, but
+    // the cream / blush / gold values are fixed so the design always
+    // reads the way it was drawn. We deliberately do NOT use theme.muted
+    // here, because some themes need that role free for readable
+    // secondary text.
+    const sageDeep = withAlpha(t.accent, 0.85);
+    const sageMid  = withAlpha(t.accent, 0.55);
+    const sageSoft = withAlpha(t.accent, 0.30);
+    const cream    = "#F1E5D6";              // warm beige blob
+    const creamSoft= "#F5EBDC";              // softer cream layer
+    const blush    = "#E8C9B5";              // peachy blush
+    const gold     = "#C9A45B";              // satin gold for thin curves
+    const goldSoft = withAlpha("#C9A45B", 0.75);
+
+    // 5x5 dot-grid pattern. Reused at four corners.
+    const dotGrid = (cx: number, cy: number, r = 24, alpha = 1) => {
+      const pts: string[] = [];
+      const step = r / 4;
+      const fill = withAlpha(t.fg, 0.32 * alpha);
+      for (let row = 0; row < 5; row++) {
+        for (let col = 0; col < 5; col++) {
+          const x = cx + (col - 2) * step;
+          const y = cy + (row - 2) * step;
+          pts.push(`<circle cx="${x}" cy="${y}" r="1.6" fill="${fill}"/>`);
+        }
+      }
+      return pts.join("");
+    };
+
+    // Diagonal hatch pattern, rotated 35°. Used inside corner accent
+    // circles to match the reference style — thin parallel sage strokes.
+    const hatchDef = `
+      <pattern id="org-hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+        <line x1="0" y1="0" x2="0" y2="7" stroke="${sageDeep}" stroke-width="1.2"/>
+      </pattern>
+      <pattern id="org-hatch-blush" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+        <line x1="0" y1="0" x2="0" y2="7" stroke="${blush}" stroke-width="1.4"/>
+      </pattern>
+    `;
+
+    // A circle filled with parallel-line hatching, used in corners.
+    // Two variants — sage and blush — so opposite corners can differ.
+    const hatchedCircle = (cx: number, cy: number, r: number, kind: "sage" | "blush") => `
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#org-hatch${kind === "blush" ? "-blush" : ""})" opacity="0.9"/>
+    `;
+
+    // Botanical leaf sprig — stem with three pairs of teardrop leaves.
+    // Renders inside a 200x200 box so we can position with translate.
+    const leafSprig = (color: string) => `
+      <g fill="${color}">
+        <path d="M 100 200 C 96 150, 100 100, 110 50" stroke="${color}" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M 100 170 C 70 168, 50 150, 40 130 C 70 132, 92 148, 100 170 Z"/>
+        <path d="M 100 170 C 130 168, 150 150, 160 130 C 130 132, 108 148, 100 170 Z"/>
+        <path d="M 102 130 C 78 128, 60 110, 52 92 C 78 96, 98 112, 102 130 Z"/>
+        <path d="M 102 130 C 126 128, 144 110, 152 92 C 126 96, 106 112, 102 130 Z"/>
+        <path d="M 106 90 C 88 88, 74 72, 70 56 C 88 60, 102 76, 106 90 Z"/>
+        <path d="M 106 90 C 124 88, 138 72, 142 56 C 124 60, 110 76, 106 90 Z"/>
+      </g>
+    `;
+
+    return svgWrap(`
+      <defs>${hatchDef}</defs>
+
+      <!-- ============ TOP-LEFT corner: sage blob + gold curves ============ -->
+      <path d="M -60 -40 C 240 -50, 420 70, 380 230
+               C 340 380, 160 360, 60 320
+               C -60 270, -120 140, -60 -40 Z"
+            fill="${sageSoft}"/>
+      <path d="M 40 -40 C 260 -10, 360 70, 300 200
+               C 240 320, 80 300, 0 220
+               C -60 160, -40 60, 40 -40 Z"
+            fill="${sageMid}"/>
+
+      <!-- gold curves cutting through the top-left blob -->
+      <path d="M -20 80 C 120 70, 240 130, 360 100"
+            stroke="${gold}" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      <path d="M -20 130 C 100 130, 220 180, 340 150"
+            stroke="${goldSoft}" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+
+      <!-- TOP-LEFT: hatched sage circle tucked into the corner blob -->
+      ${hatchedCircle(110, 130, 56, "sage")}
+
+      <!-- TOP-LEFT dot grid -->
+      ${dotGrid(70, 70, 26)}
+
+      <!-- ============ TOP-RIGHT corner: hatched circle + sage blob + leaf ============ -->
+      <!-- the marquee corner accent: a large hatched circle straddling the corner -->
+      ${hatchedCircle(W - 80, 80, 90, "blush")}
+
+      <path d="M ${W + 60} -40 C ${W - 200} -30, ${W - 360} 60, ${W - 320} 220
+               C ${W - 280} 340, ${W - 80} 320, ${W + 60} 240 Z"
+            fill="${sageDeep}" opacity="0.78"/>
+
+      <!-- gold curve sweeping into the top-right blob -->
+      <path d="M ${W - 540} 50 C ${W - 380} 30, ${W - 220} 90, ${W - 80} 60"
+            stroke="${gold}" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+
+      <!-- leaf sprig, top-right corner -->
+      <g transform="translate(${W - 220} -40) rotate(28 100 100) scale(1.05)">
+        ${leafSprig(sageDeep)}
+      </g>
+
+      <!-- TOP-RIGHT dot grid -->
+      ${dotGrid(W - 110, 230, 24, 0.85)}
+
+      <!-- ============ BOTTOM-LEFT corner: cream + blush blobs + leaf + hatched circle ============ -->
+      <path d="M -60 ${H + 40} C 100 ${H - 60}, 280 ${H - 40}, 280 ${H - 200}
+               C 280 ${H - 360}, 60 ${H - 320}, -80 ${H - 200} Z"
+            fill="${cream}"/>
+      <path d="M -40 ${H + 40} C 120 ${H - 40}, 240 ${H - 60}, 260 ${H - 200}
+               C 280 ${H - 340}, 80 ${H - 280}, -60 ${H - 180} Z"
+            fill="${creamSoft}" opacity="0.95"/>
+      <path d="M 60 ${H - 30} C 160 ${H - 60}, 240 ${H - 100}, 260 ${H - 180}"
+            stroke="${blush}" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7"/>
+
+      <!-- BOTTOM-LEFT: hatched blush circle at the very corner -->
+      ${hatchedCircle(60, H - 60, 60, "blush")}
+
+      <!-- gold curve sweeping under the cream blob -->
+      <path d="M 40 ${H - 30} C 180 ${H + 0}, 320 ${H - 70}, 460 ${H - 20}"
+            stroke="${gold}" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+
+      <!-- leaf sprig, bottom-left -->
+      <g transform="translate(80 ${H - 270}) rotate(-22 100 100) scale(1.0)">
+        ${leafSprig(sageDeep)}
+      </g>
+
+      <!-- BOTTOM-LEFT dot grid -->
+      ${dotGrid(220, H - 60, 26, 0.85)}
+
+      <!-- ============ BOTTOM-RIGHT corner: large layered sage blob + hatched circle ============ -->
+      <path d="M ${W + 60} ${H + 40} C ${W - 60} ${H - 80}, ${W - 280} ${H - 60}, ${W - 420} ${H - 180}
+               C ${W - 560} ${H - 300}, ${W - 320} ${H - 360}, ${W - 200} ${H - 300}
+               C ${W - 80} ${H - 240}, ${W + 60} ${H - 80}, ${W + 60} ${H + 40} Z"
+            fill="${sageDeep}" opacity="0.85"/>
+      <path d="M ${W + 60} ${H + 40} C ${W - 80} ${H - 60}, ${W - 240} ${H - 60}, ${W - 360} ${H - 160}
+               C ${W - 480} ${H - 260}, ${W - 280} ${H - 300}, ${W - 200} ${H - 240}
+               C ${W - 100} ${H - 180}, ${W + 60} ${H - 60}, ${W + 60} ${H + 40} Z"
+            fill="${sageMid}" opacity="0.75"/>
+
+      <!-- BOTTOM-RIGHT: hatched sage circle nestled in the corner -->
+      ${hatchedCircle(W - 60, H - 80, 64, "sage")}
+
+      <!-- gold curve sweeping across the bottom-right blob -->
+      <path d="M ${W - 540} ${H - 80} C ${W - 380} ${H - 130}, ${W - 220} ${H - 60}, ${W - 60} ${H - 100}"
+            stroke="${gold}" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+
+      <!-- BOTTOM-RIGHT dot grid -->
+      ${dotGrid(W - 200, H - 200, 28)}
+    `);
+  },
+  contentSafe: true,
+};
+
 
 export const GRAPHICS: Graphic[] = [
   none,
+  // New — soft organic style. Sits high in the catalog so it shows up
+  // on page 1 of the graphic picker for the new "Sage & Blush" template.
+  organicSage,
   softGrid,
   meshGradient,
   diagonalStripes,

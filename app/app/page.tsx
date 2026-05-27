@@ -18,6 +18,10 @@ import { applyTemplateToSlide, type TemplateVariantDefaults } from "@/lib/templa
 import { createDeck, loadDeck } from "@/lib/decks";
 import { logout, onAuthStateChange, type AppUser } from "@/lib/auth";
 import { trackEvent } from "@/lib/stats";
+import {
+  DAILY_GENERATION_LIMIT, formatRefillIn,
+  getTodayGenerations, incrementTodayGenerations,
+} from "@/lib/usage";
 import { LogOut } from "lucide-react";
 
 type Step = "dashboard" | "prompt" | "theme" | "font" | "graphic" | "deck";
@@ -110,6 +114,19 @@ function PageInner() {
   }, [user, searchParams, deckId]);
 
   const generate = async () => {
+    // Quota gate. Soft check on the client — Firebase rules + a server
+    // round-trip after success keep the count honest, but a determined
+    // user could still bypass via direct curl. Catches casual abuse.
+    if (user) {
+      const used = await getTodayGenerations(user.uid);
+      if (used >= DAILY_GENERATION_LIMIT) {
+        setError(
+          `You've used all ${DAILY_GENERATION_LIMIT} of today's free generations. Resets in ${formatRefillIn()}.`,
+        );
+        return;
+      }
+    }
+
     setLoading(true);
     setError(null);
     // Minimum animation time of 10s so the overlay always feels intentional.
@@ -157,6 +174,12 @@ function PageInner() {
       // from continuing to work on the deck — but we want to know loudly so
       // we can react with a visible error.
       if (user) {
+        // Quota: bump today's count atomically. Done after the deck is
+        // generated, not before, so failed generations don't burn quota.
+        // Fire-and-forget — the dashboard's onValue listener will pick up
+        // the new value live.
+        incrementTodayGenerations(user.uid).catch(() => {});
+
         try {
           const id = await createDeck(user.uid, deckWithExtras, theme);
           setDeckId(id);
@@ -220,6 +243,7 @@ function PageInner() {
         <Dashboard
           user={user}
           onStartFromScratch={() => setStep("prompt")}
+          onStartFromTemplate={() => { setStep("prompt"); setGalleryOpen(true); }}
           onSignOut={async () => { await logout(); router.replace("/"); }}
         />
 

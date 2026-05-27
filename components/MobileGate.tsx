@@ -22,6 +22,11 @@ export default function MobileGate() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Suppress on /app/* routes — those force desktop mode via
+    // DesktopOnMobile, so the "made for desktop" warning would be
+    // contradictory. We still show it on the landing page, /auth, etc.
+    if (window.location.pathname.startsWith("/app")) return;
+
     const isMobileView = () => {
       const narrow = window.innerWidth < 900;
       const coarse = window.matchMedia("(pointer: coarse)").matches;

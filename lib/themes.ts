@@ -62,6 +62,11 @@ export const PRESET_THEMES: Theme[] = [
   // "Obsidian Edge" template; useful on its own for engineering /
   // security / deep-tech decks.
   { id: "obsidian",     name: "Obsidian",          bg: "#0A0A0F", fg: "#FAFAFA", accent: "#A78BFA", muted: "#A1A1AA", font: "sans"  },
+  // New — soft sage greens with a deep-sage muted (so subtitles stay
+  // readable on cream). The blush + gold notes only live inside the
+  // "Soft sage blobs" graphic; they're not piped through theme.muted.
+  // Backs the "Sage & Blush" template card on the gallery's first page.
+  { id: "sage-blush",   name: "Sage & Blush",      bg: "#FAF7F2", fg: "#2F3A2A", accent: "#7B8C6F", muted: "#5C6B53", font: "serif" },
 ];
 
 export function getTheme(id: string): Theme | undefined {
