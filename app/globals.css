@@ -243,8 +243,18 @@ html, body {
   ) !important;
 }
 
-/* Dashboard sidebar uses a hardcoded near-black background. Flip it
-   to a soft warm-paper surface in light mode. */
+/* Auth right-side brand panel uses a hardcoded zinc gradient. Flip
+   the whole panel to a quiet warm-paper gradient with cyan glows in
+   light mode, otherwise the bullets read on near-black. */
+:root[data-theme="light"]
+  [class*="from-zinc-950"][class*="via-zinc-950"][class*="to-black"] {
+  background-image: linear-gradient(
+    to bottom right,
+    var(--ezd-bg-page-deep) 0%,
+    var(--ezd-bg-page) 60%,
+    var(--ezd-bg-page-deep) 100%
+  ) !important;
+}
 :root[data-theme="light"] [class*="bg-[#040A14]/90"],
 :root[data-theme="light"] [class*="bg-[#040A14]"] {
   background-color: rgba(255, 255, 255, 0.85) !important;

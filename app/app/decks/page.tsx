@@ -18,6 +18,10 @@ export default function MyDecksPage() {
   useEffect(() => {
     const unsub = onAuthStateChange((u) => {
       if (!u) { router.replace("/auth?redirect=/app/decks"); return; }
+      if (!u.emailVerified) {
+        router.replace(`/verify-email?redirect=${encodeURIComponent("/app/decks")}`);
+        return;
+      }
       setUser(u);
       setAuthReady(true);
     });

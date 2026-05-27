@@ -60,6 +60,12 @@ function PageInner() {
         router.replace("/auth?redirect=/app");
         return;
       }
+      if (!u.emailVerified) {
+        // Unverified users are bounced to /verify-email. They can
+        // resend the email or come back here once verified.
+        router.replace(`/verify-email?redirect=${encodeURIComponent("/app")}`);
+        return;
+      }
       setUser(u);
       setAuthReady(true);
       trackEvent({ kind: "page_view", path: "/app", ts: Date.now(), uid: u.uid });

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   loginWithEmail, signupWithEmail, loginWithGoogle, onAuthStateChange,
+  UnverifiedEmailError,
 } from "@/lib/auth";
 import { trackEvent } from "@/lib/stats";
 import {
@@ -43,7 +44,14 @@ function AuthInner() {
   useEffect(() => {
     trackEvent({ kind: "page_view", path: "/auth", ts: Date.now() });
     const unsubscribe = onAuthStateChange((u) => {
-      if (u) router.replace(redirect);
+      if (!u) return;
+      if (!u.emailVerified) {
+        // Already signed in but unverified — bounce them to the
+        // verification page rather than the gated route.
+        router.replace(`/verify-email?redirect=${encodeURIComponent(redirect)}`);
+        return;
+      }
+      router.replace(redirect);
     });
     return () => unsubscribe();
   }, [router, redirect]);
@@ -64,6 +72,18 @@ function AuthInner() {
       });
       router.replace(redirect);
     } catch (err: any) {
+      if (err instanceof UnverifiedEmailError) {
+        // Hand off to the verify-email page. Fire a tracking event
+        // so the funnel reflects that signup succeeded — they just
+        // haven't clicked the link yet.
+        trackEvent({
+          kind: "auth",
+          method: mode === "signup" ? "signup" : "email",
+          ts: Date.now(),
+        });
+        router.replace(`/verify-email?redirect=${encodeURIComponent(redirect)}`);
+        return;
+      }
       setError(err?.message || "Could not authenticate.");
     } finally {
       setLoading("none");

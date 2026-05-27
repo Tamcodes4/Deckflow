@@ -58,6 +58,11 @@ function Inner() {
       router.replace("/auth?redirect=/payment-success");
       return;
     }
+    if (!user.emailVerified) {
+      // Verified email is required before any deck operation.
+      router.replace(`/verify-email?redirect=${encodeURIComponent("/payment-success")}`);
+      return;
+    }
     let id: string | null = null;
     try { id = window.localStorage.getItem(STORAGE_KEY); } catch { /* ignore */ }
     if (!id) {
