@@ -45,7 +45,19 @@ export async function authenticateRequest(req: NextRequest): Promise<string> {
     const decoded = await getAuth().verifyIdToken(idToken);
     return decoded.uid;
   } catch (err: any) {
-    throw new AuthError(`Token verification failed (${err?.code || "unknown"})`, 401);
+    // Surface a useful message instead of "(unknown)". Common causes:
+    //  - FIREBASE_SERVICE_ACCOUNT_KEY missing or malformed (init throws)
+    //  - Service account belongs to a different Firebase project than
+    //    the client app (token's audience mismatch)
+    //  - Token expired or revoked
+    const detail =
+      err?.code ||
+      (typeof err?.message === "string" ? err.message : "") ||
+      err?.name ||
+      "unknown";
+    // eslint-disable-next-line no-console
+    console.error("[firebaseAdmin] verifyIdToken failed:", err);
+    throw new AuthError(`Token verification failed (${detail})`, 401);
   }
 }
 
