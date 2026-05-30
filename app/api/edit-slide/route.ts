@@ -13,7 +13,7 @@ const VALID_ANCHORS: Anchor[] = [
   "middle-left","middle-center","middle-right",
   "bottom-left","bottom-center","bottom-right",
 ];
-const VALID_ELEMENTS: ElementId[] = ["title", "subtitle", "bullets", "body", "table", "quote"];
+const VALID_ELEMENTS: ElementId[] = ["title", "subtitle", "bullets", "body", "table", "quote", "kicker"];
 
 const SLIDE_W = 13.333;
 const SLIDE_H = 7.5;
