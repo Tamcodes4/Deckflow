@@ -43,12 +43,16 @@ export async function authenticateRequest(req: NextRequest): Promise<string> {
   try {
     getAdminApp();
     const decoded = await getAuth().verifyIdToken(idToken);
-    // Hard block unverified emails so they can't bypass the UI gate
+    // Hard block unverified emails so they can't bypass the UI gate.
     if (!decoded.email_verified) {
       throw new AuthError("Email not verified", 403);
     }
     return decoded.uid;
   } catch (err: any) {
+    // Our own AuthError (e.g. the 403 above) is already well-formed —
+    // re-throw it as-is so the caller sees the correct status. Only wrap
+    // genuine token-verification failures from the Firebase SDK below.
+    if (err instanceof AuthError) throw err;
     // Surface a useful message instead of "(unknown)". Common causes:
     //  - FIREBASE_SERVICE_ACCOUNT_KEY missing or malformed (init throws)
     //  - Service account belongs to a different Firebase project than
