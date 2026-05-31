@@ -1,5 +1,4 @@
 import DesktopOnMobile from "@/components/DesktopOnMobile";
-import ForceDarkTheme from "@/components/ForceDarkTheme";
 
 /**
  * Layout for everything under /app/*.
@@ -8,10 +7,9 @@ import ForceDarkTheme from "@/components/ForceDarkTheme";
  * always renders in fixed-1280px desktop mode on phones. Other routes —
  * landing, /auth, /share, /about — are unaffected.
  *
- * Mounts ForceDarkTheme so the editor surfaces (prompt step, generate
- * overlay, slide-rail menus, panels) always render on a dark canvas.
- * They're designed for dark; the site-wide light theme is for the
- * marketing pages only. The user's saved preference is restored on exit.
+ * The dashboard and editor follow the user's chosen theme (light or
+ * dark), same as the rest of the site. Slide content keeps its own
+ * per-deck theme regardless.
  */
 export default function AppLayout({
   children,
@@ -21,7 +19,6 @@ export default function AppLayout({
   return (
     <>
       <DesktopOnMobile />
-      <ForceDarkTheme />
       {children}
     </>
   );

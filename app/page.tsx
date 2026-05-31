@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowRight, ChevronDown, Download, Github,
+  ArrowRight, ChevronDown, Download, GitCommit, Github,
   LogOut, Shapes, Sparkles, Star, Wand2,
 } from "lucide-react";
 import Logo from "@/components/Logo";
@@ -220,6 +220,16 @@ export default function LandingPage() {
               <ChevronDown size={12} className="transition group-hover:translate-y-0.5" />
             </a>
           </div>
+
+          {/* Changelog link — sits below the two primary CTAs */}
+          <Link
+            href="/changelog"
+            className="group inline-flex items-center gap-1.5 text-[12px] text-white/55 transition hover:text-white"
+          >
+            <GitCommit size={12} />
+            View changelog
+            <ArrowRight size={11} className="transition group-hover:translate-x-0.5" />
+          </Link>
 
           {/* Trust line */}
           <div className="flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 text-[10.5px] text-white/40">
@@ -783,14 +793,16 @@ function FontVisual() {
 }
 
 function GraphicVisual() {
-  // Three small graphic patterns rendered inline, monochrome.
+  // Three small graphic patterns rendered inline. They use currentColor
+  // so they read in both light and dark site themes (white-on-black /
+  // black-on-white) — the container sets the color from the theme fg.
   return (
-    <div className="grid grid-cols-3 gap-1.5">
+    <div className="grid grid-cols-3 gap-1.5" style={{ color: "var(--ezd-fg-strong)" }}>
       <div className="aspect-[4/3] overflow-hidden rounded-md border border-white/10 bg-white/[0.02]">
         <svg viewBox="0 0 80 60" className="h-full w-full" aria-hidden>
           <defs>
             <pattern id="g-grid" width="8" height="8" patternUnits="userSpaceOnUse">
-              <path d="M 8 0 L 0 0 0 8" fill="none" stroke="#FFFFFF" strokeOpacity="0.45" strokeWidth="0.4" />
+              <path d="M 8 0 L 0 0 0 8" fill="none" stroke="currentColor" strokeOpacity="0.45" strokeWidth="0.4" />
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#g-grid)" />
@@ -798,13 +810,13 @@ function GraphicVisual() {
       </div>
       <div className="aspect-[4/3] overflow-hidden rounded-md border border-white/40 bg-white/[0.02] ring-1 ring-white/30">
         <svg viewBox="0 0 80 60" className="h-full w-full" aria-hidden>
-          <path d="M 0 50 C 20 40, 40 60, 60 45 S 80 30, 80 35 L 80 60 L 0 60 Z" fill="#FFFFFF" fillOpacity="0.30" />
-          <path d="M 0 40 C 20 30, 40 50, 60 35 S 80 20, 80 28 L 80 60 L 0 60 Z" fill="#FFFFFF" fillOpacity="0.15" />
+          <path d="M 0 50 C 20 40, 40 60, 60 45 S 80 30, 80 35 L 80 60 L 0 60 Z" fill="currentColor" fillOpacity="0.30" />
+          <path d="M 0 40 C 20 30, 40 50, 60 35 S 80 20, 80 28 L 80 60 L 0 60 Z" fill="currentColor" fillOpacity="0.15" />
         </svg>
       </div>
       <div className="aspect-[4/3] overflow-hidden rounded-md border border-white/10 bg-white/[0.02]">
         <svg viewBox="0 0 80 60" className="h-full w-full" aria-hidden>
-          <g fill="none" stroke="#FFFFFF" strokeOpacity="0.5">
+          <g fill="none" stroke="currentColor" strokeOpacity="0.5">
             <circle cx="80" cy="30" r="20" />
             <circle cx="80" cy="30" r="32" />
             <circle cx="80" cy="30" r="44" />
@@ -1053,11 +1065,14 @@ function FooterCol({
 /* ----------------------- Background ----------------------- */
 
 /**
- * Intentionally empty. The landing is pure black (or white in light
- * mode) with no glows, grids, or animated effects. Kept as a named
- * component so the call site stays stable if we ever want a quiet
- * texture back.
+ * Uniform background texture for the landing page.
+ *
+ * Dark mode stays pure black (the element is invisible there). In light
+ * mode a subtle, evenly-tiled dot grid shows through, masked with a soft
+ * radial fade so the edges melt into the page rather than ending in a
+ * hard line. Driven entirely by `.landing-bg` in globals.css so the
+ * pattern is theme-scoped and paints behind all content.
  */
 function BackgroundField() {
-  return null;
+  return <div aria-hidden className="landing-bg" />;
 }

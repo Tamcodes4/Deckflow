@@ -134,7 +134,7 @@ export default function GenerateOverlay({ open }: { open: boolean }) {
       className="fixed inset-0 z-[300] flex items-center justify-center overflow-hidden"
       style={{
         background:
-          "radial-gradient(60% 50% at 50% 30%, rgba(255,255,255,0.06), transparent 70%), #000000",
+          "radial-gradient(60% 50% at 50% 30%, var(--ezd-bg-hover), transparent 70%), var(--ezd-bg-page)",
       }}
     >
       <BackdropGrid />
@@ -189,8 +189,8 @@ export default function GenerateOverlay({ open }: { open: boolean }) {
             className="ezd-progress absolute inset-y-0 left-0 origin-left rounded-full"
             style={{
               width: "100%",
-              background: "linear-gradient(90deg, rgba(255,255,255,0.4), #FFFFFF, rgba(255,255,255,0.4))",
-              boxShadow: "0 0 16px rgba(255,255,255,0.4)",
+              background: "var(--ezd-fg-strong)",
+              boxShadow: "0 0 16px var(--ezd-bg-hover)",
             }}
           />
         </div>
@@ -331,7 +331,7 @@ function BuildingSlide({
           aspectRatio: "16/9",
           background: theme.bg,
           color: theme.fg,
-          borderColor: "rgba(255,255,255,0.18)",
+          borderColor: "var(--ezd-divider)",
           fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
         }}
       >
@@ -523,7 +523,7 @@ function BuildingSlide({
         aria-hidden
         className="pointer-events-none absolute inset-x-4 -bottom-2 h-6 rounded-full blur-xl"
         style={{
-          background: isFront ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.12)",
+          background: isFront ? "rgba(120,120,120,0.28)" : "rgba(120,120,120,0.14)",
         }}
       />
     </div>
@@ -541,7 +541,7 @@ function BackdropGrid() {
       className="pointer-events-none absolute inset-0"
       style={{
         backgroundImage:
-          "linear-gradient(rgba(140,179,230,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(140,179,230,0.10) 1px, transparent 1px)",
+          "linear-gradient(var(--ezd-divider) 1px, transparent 1px), linear-gradient(90deg, var(--ezd-divider) 1px, transparent 1px)",
         backgroundSize: "64px 64px",
         maskImage:
           "radial-gradient(ellipse at 50% 35%, black 0%, black 35%, transparent 80%)",

@@ -46,6 +46,11 @@ export default function ClarifyDialog({
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
   const reqIdRef = useRef(0);
+  // Guards against double-completion. onComplete triggers generate(), which
+  // creates a deck and burns quota — firing it twice (e.g. an auto-advance
+  // racing a button, or a Strict-Mode double-invoke) would create two decks.
+  const completedRef = useRef(false);
+  const advanceTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -55,6 +60,11 @@ export default function ClarifyDialog({
     setQuestions([]);
     setStep(0);
     setAnswers({});
+    completedRef.current = false;
+    if (advanceTimerRef.current) {
+      window.clearTimeout(advanceTimerRef.current);
+      advanceTimerRef.current = null;
+    }
 
     (async () => {
       try {
@@ -110,6 +120,19 @@ export default function ClarifyDialog({
     return "User preferences for this deck (honor strictly):\n- " + parts.join("\n- ");
   };
 
+  // Single entry point for finishing. The ref guard ensures generate()
+  // can only be triggered once per dialog session, no matter how many
+  // paths (auto-advance, Next button, Skip, Strict-Mode re-invoke) reach it.
+  const complete = (directives: string) => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    if (advanceTimerRef.current) {
+      window.clearTimeout(advanceTimerRef.current);
+      advanceTimerRef.current = null;
+    }
+    onComplete(directives);
+  };
+
   const choose = (q: Question, value: string) => {
     setAnswers((prev) => {
       const existing = prev[q.id] || [];
@@ -121,23 +144,30 @@ export default function ClarifyDialog({
       } else {
         next = [value];
       }
-      const updated = { ...prev, [q.id]: next };
-      // Single-choice questions auto-advance after a short beat.
-      if (!q.multi) {
-        window.setTimeout(() => {
-          if (step < total - 1) setStep((s) => Math.min(total - 1, s + 1));
-          else onComplete(assembleDirectives(updated));
-        }, 220);
-      }
-      return updated;
+      return { ...prev, [q.id]: next };
     });
+    // Single-choice questions auto-advance after a short beat. The side
+    // effect lives OUTSIDE the state updater (updaters must stay pure —
+    // React may call them twice, which previously fired generate() twice).
+    if (!q.multi) {
+      if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
+      advanceTimerRef.current = window.setTimeout(() => {
+        if (step < total - 1) {
+          setStep((s) => Math.min(total - 1, s + 1));
+        } else {
+          // Build directives from the latest answers including this choice.
+          const updated = { ...answers, [q.id]: [value] };
+          complete(assembleDirectives(updated));
+        }
+      }, 220);
+    }
   };
 
   const canContinue = current ? (answers[current.id]?.length || 0) > 0 : false;
   const isLast = step === total - 1;
 
   const next = () => {
-    if (isLast) onComplete(assembleDirectives(answers));
+    if (isLast) complete(assembleDirectives(answers));
     else setStep((s) => Math.min(total - 1, s + 1));
   };
   const back = () => setStep((s) => Math.max(0, s - 1));
@@ -204,7 +234,7 @@ export default function ClarifyDialog({
                 {error}
               </p>
               <button
-                onClick={() => onComplete("")}
+                onClick={() => complete("")}
                 className="rounded-xl px-4 py-2 text-sm font-medium"
                 style={{ background: "var(--ezd-button-strong)", color: "var(--ezd-button-strong-fg)" }}
               >
@@ -283,7 +313,7 @@ export default function ClarifyDialog({
 
             <div className="flex items-center gap-1">
               <button
-                onClick={() => onComplete(assembleDirectives(answers))}
+                onClick={() => complete(assembleDirectives(answers))}
                 className="rounded-lg px-3 py-1.5 text-[12px] transition"
                 style={{ color: "var(--ezd-fg-quiet)" }}
               >

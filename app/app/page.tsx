@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PromptStep from "@/components/PromptStep";
@@ -13,6 +13,7 @@ import TemplateGallery from "@/components/TemplateGallery";
 import OnboardingTour from "@/components/OnboardingTour";
 import Dashboard from "@/components/Dashboard";
 import Logo from "@/components/Logo";
+import ThemeToggle from "@/components/ThemeToggle";
 import { PRESET_THEMES, getTheme, type Theme } from "@/lib/themes";
 import type { Deck, ContentDensity } from "@/lib/types";
 import { applyTemplateToSlide, type TemplateVariantDefaults } from "@/lib/templates";
@@ -35,7 +36,8 @@ export const dynamic = "force-dynamic";
 export default function Page() {
   return (
     <Suspense fallback={
-      <main className="grid min-h-screen place-items-center bg-black text-white/60 text-sm">
+      <main className="grid min-h-screen place-items-center text-sm"
+            style={{ background: "var(--ezd-bg-page)", color: "var(--ezd-fg-muted)" }}>
         Loading…
       </main>
     }>
@@ -95,6 +97,9 @@ function PageInner() {
   // Pre-generation clarifying step. requestGenerate() opens this; the
   // dialog returns tap-only directives that get folded into the prompt.
   const [clarifyOpen, setClarifyOpen] = useState(false);
+  // Synchronous lock so generate() can never run twice for one request
+  // (would create two decks + double-charge quota).
+  const generatingRef = useRef(false);
   // When a template is picked, we keep its variant defaults so we can apply
   // them to every slide once generation finishes.
   const [templateVariants, setTemplateVariants] = useState<TemplateVariantDefaults | null>(null);
@@ -153,6 +158,12 @@ function PageInner() {
   };
 
   const generate = async (directives = "") => {
+    // Hard guard against a double-invoke (e.g. clarify completing twice, or
+    // a Strict-Mode re-run). generate() creates a deck and burns quota, so
+    // it must run at most once per request. `loading` is async state and
+    // can lag, so we use a synchronous ref as the real lock.
+    if (generatingRef.current) return;
+    generatingRef.current = true;
     // Quota gate. Soft check on the client — Firebase rules + a server
     // round-trip after success keep the count honest, but a determined
     // user could still bypass via direct curl. Catches casual abuse.
@@ -162,6 +173,7 @@ function PageInner() {
         setError(
           `You've used all ${DAILY_GENERATION_LIMIT} of today's free generations. Resets in ${formatRefillIn()}.`,
         );
+        generatingRef.current = false;
         return;
       }
     }
@@ -265,6 +277,7 @@ function PageInner() {
       setError(e.message || "Something went wrong");
     } finally {
       setLoading(false);
+      generatingRef.current = false;
     }
   };
 
@@ -285,7 +298,8 @@ function PageInner() {
 
   if (!authReady) {
     return (
-      <main className="grid min-h-screen place-items-center bg-black text-white/60 text-sm">
+      <main className="grid min-h-screen place-items-center text-sm"
+            style={{ background: "var(--ezd-bg-page)", color: "var(--ezd-fg-muted)" }}>
         Loading…
       </main>
     );
@@ -334,6 +348,7 @@ function PageInner() {
           </div>
           <div className="flex items-center gap-4">
             <Stepper step={step} />
+            <ThemeToggle variant="compact" />
             {user && (
               <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs">
                 <Link href="/app/decks" className="text-white/70 hover:text-white" data-tour="my-decks" title="My decks">
