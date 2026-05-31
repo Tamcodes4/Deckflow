@@ -37,21 +37,22 @@ export const THEME_BOOT_SCRIPT = `
 (function () {
   try {
     var stored = localStorage.getItem("ezdeck_theme");
-    // Pitch black is the default. Only honor an explicit stored choice;
-    // ignore the OS preference so the brand look is consistent.
-    var resolved = (stored === "light" || stored === "dark") ? stored : "dark";
+    // New visitors default to light. Existing users keep their explicit
+    // stored choice; OS preference is intentionally ignored so the brand
+    // look stays consistent.
+    var resolved = (stored === "light" || stored === "dark") ? stored : "light";
     document.documentElement.setAttribute("data-theme", resolved);
   } catch (e) {
-    document.documentElement.setAttribute("data-theme", "dark");
+    document.documentElement.setAttribute("data-theme", "light");
   }
 })();
 `;
 
 /** Read the currently-applied theme from <html data-theme>. */
 function readCurrent(): Theme {
-  if (typeof document === "undefined") return "dark";
+  if (typeof document === "undefined") return "light";
   const v = document.documentElement.getAttribute("data-theme");
-  return v === "light" ? "light" : "dark";
+  return v === "dark" ? "dark" : "light";
 }
 
 /** Apply a theme: persist, set DOM attribute, notify listeners. */
@@ -74,7 +75,7 @@ export function useTheme(): [Theme, (next: Theme) => void, () => void] {
   // agree. The `useEffect` immediately syncs to the real applied
   // theme without a flash because the boot script already set
   // <html data-theme> before React hydrated.
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
     setTheme(readCurrent());

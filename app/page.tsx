@@ -154,76 +154,84 @@ export default function LandingPage() {
       </header>
 
       {/* ================== Hero ================== */}
-      <section className="relative z-10 mx-auto max-w-4xl px-6 pb-16 pt-32 text-center sm:pt-40">
-        {/* Headline — plain, direct, no marketing fluff */}
-        <h1
-          className="mx-auto max-w-[18ch] font-normal text-white"
-          style={{
-            fontFamily: '"Fontdiner Swanky", ui-serif, Georgia, serif',
-            fontSize: "clamp(32px, 5.2vw, 54px)",
-            lineHeight: 1.12,
-            letterSpacing: "-0.01em",
-          }}
-        >
-          Write a brief.
-          <br />
-          <span className="text-white/55">Get an editable presentation.</span>
-          {/* Keyword context for search engines + screen readers. Visually
-              hidden, fully truthful, not cloaking — describes exactly what
-              the product is. */}
-          <span className="sr-only">
-            {" "}EZdeck is a free AI PPT maker that turns your text into an
-            editable PowerPoint presentation with one-click PPTX and PDF export.
-          </span>
-        </h1>
+      <section className="relative z-10 mx-auto max-w-6xl px-6 pb-16 pt-32 sm:pt-40">
+        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1fr_minmax(0,420px)] lg:gap-16">
+          {/* ---------- Left: headline + copy ---------- */}
+          <div className="text-center lg:text-left">
+            {/* Headline — playful display font */}
+            <h1
+              className="font-normal text-white"
+              style={{
+                fontFamily: '"Fredoka", ui-rounded, "Segoe UI", system-ui, sans-serif',
+                fontWeight: 600,
+                fontSize: "clamp(38px, 5.8vw, 62px)",
+                lineHeight: 1.04,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Write a brief.
+              <br />
+              <span className="text-white/55">Get an editable presentation.</span>
+              {/* Keyword context for search engines + screen readers. Visually
+                  hidden, fully truthful, not cloaking — describes exactly what
+                  the product is. */}
+              <span className="sr-only">
+                {" "}EZdeck is a free AI PPT maker that turns your text into an
+                editable PowerPoint presentation with one-click PPTX and PDF export.
+              </span>
+            </h1>
 
-        {/* Accent underline under the heading */}
-        <span
-          aria-hidden
-          className="mx-auto mt-5 block h-[3px] w-16 rounded-full"
-          style={{ background: "var(--ezd-fg-strong)" }}
-        />
+            {/* Accent underline under the heading */}
+            <span
+              aria-hidden
+              className="mx-auto mt-6 block h-[3px] w-16 rounded-full lg:mx-0"
+              style={{ background: "var(--ezd-fg-strong)" }}
+            />
 
-        {/* Subhead */}
-        <p className="mx-auto mt-5 max-w-lg text-[14px] leading-relaxed text-white/60">
-          EZdeck turns a few sentences into a working presentation you
-          can edit slide by slide and export to PowerPoint or PDF. No
-          templates to wrestle with, no subscription.
-        </p>
+            {/* Subhead */}
+            <p className="mx-auto mt-6 max-w-md text-[15px] leading-relaxed text-white/60 lg:mx-0">
+              EZdeck turns a few sentences into a working presentation you
+              can edit slide by slide and export to PowerPoint or PDF. No
+              templates to wrestle with, no subscription.
+            </p>
+          </div>
 
-        {/* CTA pair */}
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-2.5">
-          <button
-            onClick={onGetStarted}
-            className="group inline-flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-[13px] font-semibold text-black transition hover:bg-white/90"
-          >
-            Start a presentation
-            <ArrowRight size={12} className="transition group-hover:translate-x-0.5" />
-          </button>
-          <a
-            href="#how"
-            className="group inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-[13px] text-white/85 transition hover:bg-white/10"
-          >
-            How it works
-            <ChevronDown size={12} className="transition group-hover:translate-y-0.5" />
-          </a>
+          {/* ---------- Right (desktop) / below (mobile): reviews ---------- */}
+          <div className="w-full">
+            <Reviews />
+          </div>
         </div>
 
-        {/* Trust line */}
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 text-[10.5px] text-white/40">
-          <span>Free to draft</span>
-          <Dot />
-          <span>Real .pptx &amp; .pdf export</span>
-          <Dot />
-          <span>Pay per file</span>
-          <Dot />
-          <span>Open source</span>
-        </div>
-      </section>
+        {/* CTAs — centered below both columns */}
+        <div className="mt-12 flex flex-col items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-2.5">
+            <button
+              onClick={onGetStarted}
+              className="group inline-flex items-center gap-1.5 rounded-full bg-white px-6 py-2.5 text-[13px] font-semibold text-black transition hover:bg-white/90"
+            >
+              Start a presentation
+              <ArrowRight size={12} className="transition group-hover:translate-x-0.5" />
+            </button>
+            <a
+              href="#how"
+              className="group inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-6 py-2.5 text-[13px] text-white/85 transition hover:bg-white/10"
+            >
+              How it works
+              <ChevronDown size={12} className="transition group-hover:translate-y-0.5" />
+            </a>
+          </div>
 
-      {/* ================== Reviews ================== */}
-      <section className="relative z-10 mx-auto max-w-3xl px-6 pb-8 pt-4">
-        <Reviews />
+          {/* Trust line */}
+          <div className="flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 text-[10.5px] text-white/40">
+            <span>Free to draft</span>
+            <Dot />
+            <span>Real .pptx &amp; .pdf export</span>
+            <Dot />
+            <span>Pay per file</span>
+            <Dot />
+            <span>Open source</span>
+          </div>
+        </div>
       </section>
 
       {/* ================== Feature row ================== */}
@@ -485,20 +493,23 @@ function Reviews() {
   const avg = (REVIEWS.reduce((a, r) => a + r.rating, 0) / REVIEWS.length).toFixed(1);
 
   return (
-    <div className="text-center">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.26em] text-white/45">
-        What people say
-      </div>
-      <div className="mt-2 flex items-center justify-center gap-2">
-        <StarRating rating={4.5} size={16} />
-        <span className="text-[13px] text-white/70">
-          <span className="font-semibold text-white">{avg}</span> / 5 average
+    <div className="mx-auto w-full max-w-[400px] lg:mx-0">
+      {/* Header: label + average */}
+      <div className="mb-3 flex items-center justify-between px-1">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.26em] text-white/45">
+          What people say
+        </span>
+        <span className="flex items-center gap-1.5">
+          <StarRating rating={4.5} size={14} />
+          <span className="text-[12px] text-white/70">
+            <span className="font-semibold text-white">{avg}</span>/5
+          </span>
         </span>
       </div>
 
-      {/* Carousel viewport */}
+      {/* Carousel viewport — fixed frame, cards slide inside it */}
       <div
-        className="relative mt-7 overflow-hidden"
+        className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
       >
@@ -507,32 +518,33 @@ function Reviews() {
           style={{ transform: `translateX(-${index * 100}%)` }}
         >
           {REVIEWS.map((r) => (
-            <div key={r.name} className="w-full shrink-0 px-1">
-              <figure className="mx-auto max-w-xl rounded-2xl border border-white/10 bg-white/[0.025] p-6 text-left">
-                <StarRating rating={r.rating} size={15} />
-                <blockquote className="mt-3 text-[14px] leading-relaxed text-white/85">
-                  {r.text}
-                </blockquote>
-                <figcaption className="mt-4 flex items-center gap-3">
-                  <span
-                    className="grid h-9 w-9 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-[12px] font-semibold text-white"
-                    aria-hidden
-                  >
-                    {r.name.split(" ").map((p) => p[0]).join("").slice(0, 2)}
-                  </span>
-                  <span>
-                    <span className="block text-[13px] font-medium text-white">{r.name}</span>
-                    <span className="block text-[11.5px] text-white/50">{r.role}</span>
-                  </span>
-                </figcaption>
-              </figure>
-            </div>
+            <figure
+              key={r.name}
+              className="flex min-h-[210px] w-full shrink-0 flex-col p-6 text-left"
+            >
+              <StarRating rating={r.rating} size={15} />
+              <blockquote className="mt-4 flex-1 text-[14.5px] leading-relaxed text-white/85">
+                &ldquo;{r.text}&rdquo;
+              </blockquote>
+              <figcaption className="mt-5 flex items-center gap-3">
+                <span
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-[12px] font-semibold text-white"
+                  aria-hidden
+                >
+                  {r.name.split(" ").map((p) => p[0]).join("").slice(0, 2)}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px] font-medium text-white">{r.name}</span>
+                  <span className="block truncate text-[11.5px] text-white/50">{r.role}</span>
+                </span>
+              </figcaption>
+            </figure>
           ))}
         </div>
       </div>
 
       {/* Dots */}
-      <div className="mt-5 flex items-center justify-center gap-1.5">
+      <div className="mt-4 flex items-center justify-center gap-1.5">
         {REVIEWS.map((_, i) => (
           <button
             key={i}
