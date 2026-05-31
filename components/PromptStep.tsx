@@ -1,11 +1,15 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, LayoutGrid, Sparkles, Wand2 } from "lucide-react";
+import { Check, FileText, LayoutGrid, Sparkles, Upload, Wand2 } from "lucide-react";
 import type { ContentDensity } from "@/lib/types";
 
 type Props = {
   prompt: string;
   setPrompt: (v: string) => void;
+  inputMode: "prompt" | "content";
+  setInputMode: (m: "prompt" | "content") => void;
+  sourceText: string;
+  setSourceText: (v: string) => void;
   slideCount: number;
   setSlideCount: (n: number) => void;
   audience: string;
@@ -45,18 +49,25 @@ const DENSITY_OPTIONS: { id: ContentDensity; label: string; hint: string }[] = [
 
 export default function PromptStep(p: Props) {
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [uploadName, setUploadName] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const isContent = p.inputMode === "content";
 
   // Autofocus on mount so the first thing you do is type.
   useEffect(() => { taRef.current?.focus(); }, []);
 
-  // Auto-grow the textarea as content changes.
+  // Auto-grow the textarea as content changes (prompt mode only — the
+  // content textarea has its own fixed min/max height).
   useEffect(() => {
+    if (isContent) return;
     const ta = taRef.current;
     if (!ta) return;
     ta.style.height = "auto";
     ta.style.height = `${Math.min(Math.max(ta.scrollHeight, 200), 420)}px`;
-  }, [p.prompt]);
+  }, [p.prompt, isContent]);
 
   // Cmd/Ctrl + Enter to continue.
   useEffect(() => {
@@ -72,7 +83,10 @@ export default function PromptStep(p: Props) {
   }, [p.prompt, p.onNext, p.activeTemplateName, p.onGenerateDirect, p]);
 
   const charCount = p.prompt.length;
-  const ready = p.prompt.trim().length >= 5;
+  const sourceCount = p.sourceText.length;
+  const ready = isContent
+    ? p.sourceText.trim().length >= 40
+    : p.prompt.trim().length >= 5;
 
   const charHint = useMemo(() => {
     if (charCount === 0) return "Aim for 1-3 sentences. Specific is better than long.";
@@ -87,6 +101,30 @@ export default function PromptStep(p: Props) {
     else p.onNext();
   };
 
+  // Read a dropped/selected text file into the source box. Plain-text only
+  // (.txt/.md) — no extra deps. Other formats are rejected with a hint.
+  const onFile = async (file: File | null) => {
+    if (!file) return;
+    setUploadError(null);
+    const okExt = /\.(txt|md|markdown|csv|text)$/i.test(file.name);
+    const okType = !file.type || /^text\//.test(file.type);
+    if (!okExt && !okType) {
+      setUploadError("Plain text only for now (.txt or .md). For a PDF or Word doc, copy the text and paste it.");
+      return;
+    }
+    if (file.size > 1_000_000) {
+      setUploadError("That file is large — paste just the part you want in the deck.");
+      return;
+    }
+    try {
+      const text = await file.text();
+      p.setSourceText(text);
+      setUploadName(file.name);
+    } catch {
+      setUploadError("Couldn't read that file. Try pasting the text instead.");
+    }
+  };
+
   return (
     <div className="fade-in mx-auto w-full max-w-6xl">
       {/* Page header — quieter than before, no wizard chip */}
@@ -96,10 +134,12 @@ export default function PromptStep(p: Props) {
             <Sparkles size={11} className="text-cyan-300" /> New deck
           </div>
           <h1 className="text-3xl font-semibold tracking-tight md:text-[34px]">
-            Tell me about the deck
+            {isContent ? "Turn your content into slides" : "Tell me about the deck"}
           </h1>
           <p className="mt-1.5 max-w-xl text-sm text-white/55">
-            A sentence or two is enough. Audience and tone help, but they're optional.
+            {isContent
+              ? "Paste your essay, report, or notes. AI keeps your words and organizes them into a presentation."
+              : "A sentence or two is enough. Audience and tone help, but they're optional."}
           </p>
         </div>
         <span className="hidden text-[11px] text-white/35 sm:block">
@@ -107,48 +147,144 @@ export default function PromptStep(p: Props) {
         </span>
       </div>
 
+      {/* Input mode toggle — describe a topic, or import existing content. */}
+      <div className="mb-5 inline-flex rounded-full border border-white/10 bg-white/[0.03] p-1">
+        <button
+          onClick={() => p.setInputMode("prompt")}
+          className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[12.5px] font-medium transition ${
+            !isContent ? "bg-white text-black" : "text-white/65 hover:text-white"
+          }`}
+        >
+          <Sparkles size={12} /> Describe a topic
+        </button>
+        <button
+          onClick={() => p.setInputMode("content")}
+          className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[12.5px] font-medium transition ${
+            isContent ? "bg-white text-black" : "text-white/65 hover:text-white"
+          }`}
+        >
+          <FileText size={12} /> Paste your content
+        </button>
+      </div>
+
       {/* Two-column workspace: brief on the left, side rail on the right */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
         {/* ============ LEFT: the brief ============ */}
         <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 lg:p-6">
-          <div className="relative" data-tour="brief">
-            <textarea
-              ref={taRef}
-              value={p.prompt}
-              onChange={(e) => p.setPrompt(e.target.value)}
-              placeholder="e.g. A 10-slide investor update covering Q1 traction, churn, and our ask for the next round."
-              rows={6}
-              className="block w-full resize-none rounded-xl border border-white/10 bg-black/40 p-4 pb-12 text-base leading-relaxed outline-none placeholder:text-white/30 focus:border-white/30"
-              style={{ minHeight: 200, maxHeight: 420 }}
-            />
+          {isContent ? (
+            <>
+              <div className="relative">
+                <textarea
+                  ref={taRef}
+                  value={p.sourceText}
+                  onChange={(e) => { p.setSourceText(e.target.value); if (uploadName) setUploadName(null); }}
+                  placeholder="Paste your essay, report, article, or notes here. AI keeps your words and turns them into slides — it won't rewrite your content into something generic."
+                  rows={10}
+                  className="block w-full resize-none rounded-xl border border-white/10 bg-black/40 p-4 pb-12 text-[15px] leading-relaxed outline-none placeholder:text-white/30 focus:border-white/30"
+                  style={{ minHeight: 300, maxHeight: 520 }}
+                />
+                <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-center justify-between text-[11px] text-white/40">
+                  <span className="line-clamp-1 pr-3">
+                    {sourceCount === 0
+                      ? "Paste anything from a paragraph to a full document."
+                      : sourceCount < 40
+                      ? "A little more text and I can build a proper deck."
+                      : "Looks good — I'll keep your content and structure it into slides."}
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-black/40 px-2 py-0.5 tabular-nums">
+                    {sourceCount.toLocaleString()}
+                  </span>
+                </div>
+              </div>
 
-            {/* Footer row inside the textarea — char count + hint */}
-            <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-center justify-between text-[11px] text-white/40">
-              <span className="line-clamp-1 pr-3">{charHint}</span>
-              <span className="rounded-full border border-white/10 bg-black/40 px-2 py-0.5 tabular-nums">
-                {charCount}
-              </span>
-            </div>
-          </div>
-
-          {/* Quick starters */}
-          <div className="mt-5">
-            <div className="mb-2 text-[10px] uppercase tracking-wider text-white/45">
-              Quick starters
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {EXAMPLES.map((ex) => (
+              {/* Upload row */}
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".txt,.md,.markdown,.csv,.text,text/plain"
+                  className="hidden"
+                  onChange={(e) => onFile(e.target.files?.[0] || null)}
+                />
                 <button
-                  key={ex.label}
-                  onClick={() => p.setPrompt(ex.prompt)}
-                  title={ex.prompt}
-                  className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/75 transition hover:border-white/30 hover:bg-white/10"
+                  onClick={() => fileRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 transition hover:border-white/30 hover:bg-white/10"
                 >
-                  {ex.label}
+                  <Upload size={12} /> Upload a .txt or .md file
                 </button>
-              ))}
-            </div>
-          </div>
+                {uploadName && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-white/60">
+                    <FileText size={11} /> {uploadName}
+                  </span>
+                )}
+                {p.sourceText.trim().length > 0 && (
+                  <button
+                    onClick={() => { p.setSourceText(""); setUploadName(null); setUploadError(null); }}
+                    className="text-[11px] text-white/45 underline-offset-2 hover:text-white/80 hover:underline"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              {uploadError && (
+                <p className="mt-2 text-[11px] text-red-300">{uploadError}</p>
+              )}
+
+              {/* Optional intent line */}
+              <div className="mt-6">
+                <Field label="What's it for? (optional)">
+                  <input
+                    type="text"
+                    value={p.prompt}
+                    onChange={(e) => p.setPrompt(e.target.value)}
+                    placeholder="e.g. a 10-minute class presentation, a board readout…"
+                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm outline-none focus:border-white/30"
+                  />
+                </Field>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="relative" data-tour="brief">
+                <textarea
+                  ref={taRef}
+                  value={p.prompt}
+                  onChange={(e) => p.setPrompt(e.target.value)}
+                  placeholder="e.g. A 10-slide investor update covering Q1 traction, churn, and our ask for the next round."
+                  rows={6}
+                  className="block w-full resize-none rounded-xl border border-white/10 bg-black/40 p-4 pb-12 text-base leading-relaxed outline-none placeholder:text-white/30 focus:border-white/30"
+                  style={{ minHeight: 200, maxHeight: 420 }}
+                />
+
+                {/* Footer row inside the textarea — char count + hint */}
+                <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-center justify-between text-[11px] text-white/40">
+                  <span className="line-clamp-1 pr-3">{charHint}</span>
+                  <span className="rounded-full border border-white/10 bg-black/40 px-2 py-0.5 tabular-nums">
+                    {charCount}
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick starters */}
+              <div className="mt-5">
+                <div className="mb-2 text-[10px] uppercase tracking-wider text-white/45">
+                  Quick starters
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {EXAMPLES.map((ex) => (
+                    <button
+                      key={ex.label}
+                      onClick={() => p.setPrompt(ex.prompt)}
+                      title={ex.prompt}
+                      className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/75 transition hover:border-white/30 hover:bg-white/10"
+                    >
+                      {ex.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Audience + tone — sit inline within the same card so the
               brief and its modifiers feel like one block. */}

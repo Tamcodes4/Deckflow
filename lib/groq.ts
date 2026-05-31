@@ -220,6 +220,64 @@ speech, and an investor update should each feel distinct in layout, language, an
 rhythm. Read the user's brief in full. If they specified a structure or named
 slides, follow it exactly. Do not paste generic content.`;
 
+/* ============================================================
+ * IMPORT MODE
+ *
+ * Different job from the brief-based generator above. Here the user
+ * hands us content they ALREADY wrote (an essay, report, notes, an
+ * article) and wants it turned into slides. We must NOT invent a topic
+ * or pad with generic filler — we ORGANIZE their material.
+ * ============================================================ */
+const IMPORT_SYSTEM_PROMPT = `You are SlideGen, a senior presentation designer.
+The user is giving you content they ALREADY WROTE. Your job is to turn THAT
+content into a clean, well-structured slide deck — not to write a new one.
+Output ONLY valid JSON matching the schema. No prose, no markdown.
+
+${/* schema block is shared and appended at call time */ ""}
+
+THE GOLDEN RULE — PRESERVE THEIR CONTENT:
+- Work from the user's actual words and ideas. Do NOT replace their content
+  with your own generic version of the topic. Every slide must trace back to
+  something the user actually wrote.
+- You MAY: split long paragraphs into slides, turn prose into tight bullet
+  points, write a short slide title and a subtitle for each section, reorder
+  lightly for flow, and lift real numbers/lists into a chart or table.
+- You MUST NOT: invent facts, statistics, quotes, or sources that aren't in
+  their text; drop whole sections; or summarize so hard the meaning is lost.
+- Condense wordy prose into scannable bullets, but keep the substance. If the
+  user wrote a specific figure, name, date, or example, keep it.
+
+YOU decide everything about the shape:
+- Read the whole input first. Figure out its natural sections, then decide how
+  many slides it needs — use as many or as few as the content calls for. Do not
+  force a number. A long document becomes more slides; a short one, fewer.
+- Decide each slide's TITLE yourself from the content of that section. Write a
+  SUBTITLE where it adds clarity. There is no fixed structure or template.
+- Choose each slide's layout from the palette based on what that section's
+  content actually is (prose -> bullets; a real comparison the text makes ->
+  two-column; numbers the text states -> chart or table; a line the user
+  clearly meant as a pull-quote -> quote). Don't force any layout.
+- Derive the deck title and subtitle from the document itself (use its real
+  heading/thesis if it has one).
+
+Charts and tables in import mode: ONLY build one from numbers/rows the user
+ACTUALLY provided in their text. Never fabricate data to make a chart. If the
+text has no real figures, present it as bullets.
+
+First slide MUST be "title-hero" (titled from the document). Last slide MUST be
+"closing". Do NOT use a "references" layout — it's added automatically. Respect
+all the text/length caps and completeness rules below.`;
+
+function buildImportSchemaPrompt() {
+  // Reuse the exact schema + layout palette + rules from the main system
+  // prompt so import-mode output is validated identically. The main prompt's
+  // schema section is everything between "Schema:" and the closing tone line.
+  const schemaStart = SYSTEM_PROMPT.indexOf("Schema:");
+  const rulesTail = SYSTEM_PROMPT.slice(schemaStart);
+  return `${IMPORT_SYSTEM_PROMPT}\n\n${rulesTail}`;
+}
+
+
 function buildUserMessage(opts: {
   prompt: string;
   slideCount: number;
@@ -330,6 +388,48 @@ function cleanRefs(arr: any): Reference[] {
     })
     .filter((x): x is Reference => !!x)
     .slice(0, 12);
+}
+
+/** Map one raw model slide object to a clean, validated Slide. Shared by
+ *  the prompt path and the import-from-content path so both apply the same
+ *  layout validation, variant whitelisting, and text cleaning. */
+function mapRawSlide(s: any, i: number, total: number): Slide {
+  const rawLayout = s.layout;
+  const layout: SlideLayout = VALID_LAYOUTS.includes(rawLayout)
+    ? rawLayout
+    : i === 0 ? "title-hero"
+    : i === total - 1 ? "closing"
+    : "bullets";
+
+  return {
+    layout: layout === "references" ? ("bullets" as SlideLayout) : layout,
+    title: clean(s.title),
+    subtitle: s.subtitle ? clean(s.subtitle) : undefined,
+    bullets: Array.isArray(s.bullets) ? s.bullets.map(clean).filter(Boolean) : [],
+    body: s.body ? clean(s.body) : undefined,
+    table: cleanTable(s.table),
+    chart: cleanChartSpec(s.chart),
+    notes: s.notes ? clean(s.notes) : undefined,
+    kicker: s.kicker ? clean(s.kicker).toUpperCase().slice(0, 60) : undefined,
+    titleVariant:
+      s.titleVariant === "asymmetric"  ? "asymmetric"  :
+      s.titleVariant === "big-initial" ? "big-initial" :
+      s.titleVariant === "numbered"    ? "numbered"    :
+      s.titleVariant === "underlined"  ? "underlined"  :
+      s.titleVariant === "centered"    ? "centered"    : undefined,
+    bulletsVariant:
+      ["standard", "numbered", "cards", "icon-check", "dashed"].includes(s.bulletsVariant)
+        ? s.bulletsVariant : undefined,
+    twoColumnVariant:
+      ["classic", "divider", "cards", "numbered", "compare"].includes(s.twoColumnVariant)
+        ? s.twoColumnVariant : undefined,
+    columnLabels:
+      s.columnLabels && typeof s.columnLabels === "object"
+        && typeof s.columnLabels.left === "string" && typeof s.columnLabels.right === "string"
+        ? { left: clean(s.columnLabels.left).slice(0, 28), right: clean(s.columnLabels.right).slice(0, 28) }
+        : undefined,
+    annotations: [],
+  };
 }
 
 /** A slide is empty if its layout-specific content field is missing. */
@@ -454,44 +554,9 @@ export async function generateDeck(opts: {
     throw new Error("Model returned no slides.");
   }
 
-  const slides: Slide[] = parsed.slides.map((s: any, i: number) => {
-    const rawLayout = s.layout;
-    const layout: SlideLayout = VALID_LAYOUTS.includes(rawLayout)
-      ? rawLayout
-      : i === 0 ? "title-hero"
-      : i === parsed.slides.length - 1 ? "closing"
-      : "bullets";
-
-    return {
-      layout: layout === "references" ? ("bullets" as SlideLayout) : layout,
-      title: clean(s.title),
-      subtitle: s.subtitle ? clean(s.subtitle) : undefined,
-      bullets: Array.isArray(s.bullets) ? s.bullets.map(clean).filter(Boolean) : [],
-      body: s.body ? clean(s.body) : undefined,
-      table: cleanTable(s.table),
-      chart: cleanChartSpec(s.chart),
-      notes: s.notes ? clean(s.notes) : undefined,
-      kicker: s.kicker ? clean(s.kicker).toUpperCase().slice(0, 60) : undefined,
-      titleVariant:
-        s.titleVariant === "asymmetric"  ? "asymmetric"  :
-        s.titleVariant === "big-initial" ? "big-initial" :
-        s.titleVariant === "numbered"    ? "numbered"    :
-        s.titleVariant === "underlined"  ? "underlined"  :
-        s.titleVariant === "centered"    ? "centered"    : undefined,
-      bulletsVariant:
-        ["standard", "numbered", "cards", "icon-check", "dashed"].includes(s.bulletsVariant)
-          ? s.bulletsVariant : undefined,
-      twoColumnVariant:
-        ["classic", "divider", "cards", "numbered", "compare"].includes(s.twoColumnVariant)
-          ? s.twoColumnVariant : undefined,
-      columnLabels:
-        s.columnLabels && typeof s.columnLabels === "object"
-          && typeof s.columnLabels.left === "string" && typeof s.columnLabels.right === "string"
-          ? { left: clean(s.columnLabels.left).slice(0, 28), right: clean(s.columnLabels.right).slice(0, 28) }
-          : undefined,
-      annotations: [],
-    };
-  });
+  const slides: Slide[] = parsed.slides.map((s: any, i: number) =>
+    mapRawSlide(s, i, parsed.slides.length),
+  );
 
   if (slides[0]) slides[0].layout = "title-hero";
   if (slides.length > 1) slides[slides.length - 1].layout = "closing";
@@ -604,4 +669,187 @@ export async function generateDeck(opts: {
   };
 
   return deck;
+}
+
+/* ============================================================
+ * IMPORT: build a deck from the user's OWN content.
+ *
+ * The model organizes the supplied text into slides — it decides the
+ * count, titles, subtitles, and layouts. We do NOT pad/trim to a fixed
+ * count here (the whole point is to honor the content's natural shape),
+ * but we keep the same cleaning, the empty-slide fill backstop, and the
+ * chart/table downgrade guards.
+ * ============================================================ */
+export async function generateDeckFromContent(opts: {
+  /** The user's raw pasted/uploaded content. Preserved, not invented. */
+  sourceText: string;
+  /** Optional one-liner about intent/audience (e.g. "for my class"). */
+  prompt?: string;
+  audience?: string;
+  tone?: string;
+  density?: ContentDensity;
+  includeReferences?: boolean;
+  /** Hard user directives from the pre-generation clarify step. */
+  directives?: string;
+  /** Optional cap so a huge paste doesn't run forever. 0 = let AI decide. */
+  maxSlides?: number;
+}): Promise<Deck> {
+  const density: ContentDensity = opts.density || "balanced";
+  const includeReferences = opts.includeReferences !== false;
+  // Guard the token budget: trim absurdly large pastes. ~24k chars is plenty
+  // of source for a long deck and stays well within the model's context.
+  const source = opts.sourceText.trim().slice(0, 24000);
+
+  const directivesBlock = opts.directives && opts.directives.trim()
+    ? `\n=========================================================
+THE USER'S EXPLICIT CHOICES — THESE OVERRIDE EVERYTHING ELSE.
+${opts.directives.trim()}
+- If the user chose text-only / no visuals: output ZERO chart and ZERO
+  table slides. Express any numbers in words inside bullets instead.
+=========================================================\n`
+    : "";
+
+  const refLine = includeReferences
+    ? `For "references": include ONLY sources that actually appear in the user's content. Do not invent any. If none are present, return an empty array.`
+    : `Set "references" to an empty array.`;
+
+  const countLine = opts.maxSlides && opts.maxSlides > 0
+    ? `Use as many slides as the content needs, up to a maximum of ${opts.maxSlides}.`
+    : `Use as many slides as the content genuinely needs — do not force a number.`;
+
+  const intentLine = opts.prompt && opts.prompt.trim()
+    ? `What the user wants this presentation for: "${opts.prompt.trim()}"\n`
+    : "";
+
+  const user = `Turn the content below into a presentation. Organize THE USER'S OWN
+content — do not replace it with a generic take on the topic, and do not drop
+sections. ${countLine}
+${directivesBlock}
+${intentLine}${DENSITY_GUIDE[density]}
+
+${refLine}
+
+You decide the deck title, every slide's title and subtitle, the layout of each
+slide, and the order. Slide 1 is "title-hero" (titled from the document), the
+last slide is "closing". Turn dense prose into tight, scannable bullets while
+keeping the real substance, figures, names, and examples the user wrote.
+
+Audience: ${opts.audience || "infer from the content"}
+Tone: ${opts.tone || "match the content's own voice"}
+
+THE USER'S CONTENT:
+"""
+${source}
+"""
+
+Return ONLY the JSON object.`;
+
+  const completion = await withGroqClient((client) =>
+    client.chat.completions.create({
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      temperature: 0.4, // lower than the brief path: stay close to their words
+      max_tokens: 8000,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: buildImportSchemaPrompt() },
+        { role: "user", content: user },
+      ],
+    }),
+  );
+
+  const raw = completion.choices[0]?.message?.content || "";
+  const parsed = JSON.parse(extractJson(raw));
+
+  if (!parsed || !Array.isArray(parsed.slides) || parsed.slides.length === 0) {
+    throw new Error("Model returned no slides.");
+  }
+
+  let slides: Slide[] = parsed.slides.map((s: any, i: number) =>
+    mapRawSlide(s, i, parsed.slides.length),
+  );
+
+  // Clamp to a sane window so a runaway response can't produce 80 slides.
+  const hardCap = Math.min(40, opts.maxSlides && opts.maxSlides > 0 ? opts.maxSlides : 40);
+  if (slides.length > hardCap) {
+    slides = [
+      slides[0],
+      ...slides.slice(1, slides.length - 1).slice(0, hardCap - 2),
+      slides[slides.length - 1],
+    ];
+  }
+
+  if (slides[0]) slides[0].layout = "title-hero";
+  if (slides.length > 1) slides[slides.length - 1].layout = "closing";
+
+  // Same guards as the brief path: a chart/table the model couldn't back with
+  // real data downgrades to bullets so the slide still carries content.
+  for (let i = 1; i < slides.length - 1; i++) {
+    if (slides[i].layout === "chart" && (!slides[i].chart || slides[i].chart!.data.length < 2)) {
+      slides[i].layout = "bullets";
+      slides[i].chart = undefined;
+    }
+    if (slides[i].layout === "table" && !slides[i].table) {
+      slides[i].layout = "bullets";
+    }
+  }
+
+  // Drop noise quote slides.
+  for (let i = slides.length - 2; i > 0; i--) {
+    const s = slides[i];
+    if (s.layout === "quote") {
+      const body = (s.body || "").trim();
+      const looksReal = body.length >= 12 && /[a-zA-Z]/.test(body) && !/^[a-z]{8,}$/.test(body);
+      if (!looksReal) slides.splice(i, 1);
+    }
+  }
+
+  const tentative: Deck = {
+    title: clean(parsed.title) || "Untitled Deck",
+    subtitle: parsed.subtitle ? clean(parsed.subtitle) : undefined,
+    slides,
+    topic: (opts.prompt && opts.prompt.trim()) || clean(parsed.title) || "Imported content",
+    audience: opts.audience,
+    tone: opts.tone,
+    density,
+  };
+
+  // Backstop fill for any slide the model left thin.
+  const emptyIndices = slides
+    .map((s, i) => (i === 0 || i === slides.length - 1 ? -1 : isEmptySlide(s) ? i : -1))
+    .filter((i) => i >= 0);
+
+  let filledSlides = slides;
+  if (emptyIndices.length > 0) {
+    try {
+      filledSlides = await fillEmptySlides(tentative, emptyIndices);
+    } catch (e) {
+      console.warn("[generateDeckFromContent] fill pass failed:", e);
+    }
+  }
+
+  const references = cleanRefs(parsed.references);
+  if (includeReferences && references.length > 0 && filledSlides.length > 1) {
+    filledSlides = [
+      ...filledSlides.slice(0, filledSlides.length - 1),
+      {
+        layout: "references" as SlideLayout,
+        title: "References",
+        subtitle: undefined,
+        bullets: [],
+        body: undefined,
+        table: undefined,
+        notes: "Cite the sources below where relevant during the talk.",
+        annotations: [],
+      },
+      filledSlides[filledSlides.length - 1],
+    ];
+  }
+
+  return {
+    title: tentative.title,
+    subtitle: tentative.subtitle,
+    slides: filledSlides,
+    references: includeReferences ? references : [],
+    includeReferences,
+  };
 }

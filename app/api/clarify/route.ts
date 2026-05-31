@@ -155,18 +155,29 @@ function fallbackQuestions(): Question[] {
 export async function POST(req: NextRequest) {
   try {
     await authenticateRequest(req);
-    const { prompt, audience, tone, slideCount } = (await req.json()) as {
+    const { prompt, audience, tone, slideCount, sourceText } = (await req.json()) as {
       prompt: string;
       audience?: string;
       tone?: string;
       slideCount?: number;
+      sourceText?: string;
     };
 
-    if (!prompt || typeof prompt !== "string" || prompt.trim().length < 5) {
-      return NextResponse.json({ error: "prompt required" }, { status: 400 });
+    const hasSource = typeof sourceText === "string" && sourceText.trim().length >= 40;
+    const hasPrompt = typeof prompt === "string" && prompt.trim().length >= 5;
+
+    if (!hasSource && !hasPrompt) {
+      return NextResponse.json({ error: "prompt or sourceText required" }, { status: 400 });
     }
 
-    const safePrompt = prompt.replace(/\\/g, "\\\\").replace(/"/g, '\\"').slice(0, 2000);
+    // In import mode the "brief" is a trimmed excerpt of the user's own
+    // content (plus any intent line) so the questions are tailored to what
+    // they actually pasted, not a generic topic.
+    const briefRaw = hasSource
+      ? `${prompt && prompt.trim() ? `Intent: ${prompt.trim()}\n` : ""}The user pasted this content to turn into a presentation:\n${sourceText!.trim().slice(0, 4000)}`
+      : prompt;
+
+    const safePrompt = briefRaw.replace(/\\/g, "\\\\").replace(/"/g, '\\"').slice(0, 4000);
 
     const completion = await withGroqClient((client) =>
       client.chat.completions.create({

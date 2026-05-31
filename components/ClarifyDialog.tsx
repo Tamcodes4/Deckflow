@@ -27,10 +27,12 @@ type Question = {
 };
 
 export default function ClarifyDialog({
-  open, prompt, audience, tone, slideCount, onClose, onComplete,
+  open, prompt, sourceText, audience, tone, slideCount, onClose, onComplete,
 }: {
   open: boolean;
   prompt: string;
+  /** Import-mode content. When present, questions are tailored to it. */
+  sourceText?: string;
   audience?: string;
   tone?: string;
   slideCount?: number;
@@ -64,7 +66,7 @@ export default function ClarifyDialog({
               "Content-Type": "application/json",
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
-            body: JSON.stringify({ prompt, audience, tone, slideCount }),
+            body: JSON.stringify({ prompt, sourceText, audience, tone, slideCount }),
           });
         };
 
@@ -90,7 +92,7 @@ export default function ClarifyDialog({
         if (myReq === reqIdRef.current) setLoading(false);
       }
     })();
-  }, [open, prompt, audience, tone, slideCount]);
+  }, [open, prompt, sourceText, audience, tone, slideCount]);
 
   if (!open) return null;
 

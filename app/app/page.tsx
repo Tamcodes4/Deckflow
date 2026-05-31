@@ -76,6 +76,8 @@ function PageInner() {
 
   const [step, setStep] = useState<Step>("dashboard");
   const [prompt, setPrompt] = useState("");
+  const [inputMode, setInputMode] = useState<"prompt" | "content">("prompt");
+  const [sourceText, setSourceText] = useState("");
   const [slideCount, setSlideCount] = useState(8);
   const [audience, setAudience] = useState("");
   const [tone, setTone] = useState("");
@@ -137,7 +139,12 @@ function PageInner() {
         return;
       }
     }
-    if (prompt.trim().length < 5) {
+    if (inputMode === "content") {
+      if (sourceText.trim().length < 40) {
+        setError("Paste a bit more of your content first (a paragraph or more).");
+        return;
+      }
+    } else if (prompt.trim().length < 5) {
       setError("Add a sentence or two about your deck first.");
       return;
     }
@@ -172,7 +179,7 @@ function PageInner() {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ prompt, slideCount, audience, tone, density, includeReferences, directives }),
+          body: JSON.stringify({ prompt, slideCount, audience, tone, density, includeReferences, directives, sourceText: inputMode === "content" ? sourceText : "" }),
         });
         return { res, data: await res.json().catch(() => ({})) };
       };
@@ -265,6 +272,8 @@ function PageInner() {
     setStep("dashboard");
     setDeck(null);
     setDeckId(null);
+    setSourceText("");
+    setInputMode("prompt");
     // Drop the ?id from the URL on restart so refreshing doesn't re-open
     // the deck the user just left.
     try {
@@ -355,6 +364,10 @@ function PageInner() {
         <PromptStep
           prompt={prompt}
           setPrompt={setPrompt}
+          inputMode={inputMode}
+          setInputMode={setInputMode}
+          sourceText={sourceText}
+          setSourceText={setSourceText}
           slideCount={slideCount}
           setSlideCount={setSlideCount}
           audience={audience}
@@ -429,6 +442,7 @@ function PageInner() {
       <ClarifyDialog
         open={clarifyOpen}
         prompt={prompt}
+        sourceText={inputMode === "content" ? sourceText : ""}
         audience={audience}
         tone={tone}
         slideCount={slideCount}
