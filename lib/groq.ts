@@ -16,10 +16,10 @@ const VALID_LAYOUTS: SlideLayout[] = [
 ];
 
 const DENSITY_GUIDE: Record<ContentDensity, string> = {
-  concise:        `Density: CONCISE.\n- Exactly 3 bullets per content slide. Hard cap.\n- Each bullet 4-8 words, max 60 characters.`,
-  balanced:       `Density: BALANCED.\n- Exactly 4 bullets per content slide. Hard cap.\n- Each bullet 8-14 words, max 90 characters.`,
-  detailed:       `Density: DETAILED.\n- Exactly 4 bullets per content slide. Hard cap (5 only if absolutely necessary).\n- Each bullet 12-20 words, max 130 characters.\n- Real sentences, but tight. NEVER let any single bullet exceed 130 chars.`,
-  comprehensive:  `Density: COMPREHENSIVE.\n- Exactly 5 bullets per content slide. Hard cap.\n- Each bullet 18-26 words, max 160 characters.\n- Substance and specificity matter, but NEVER overflow 160 chars per bullet — split into two bullets if needed.`,
+  concise:        `Density: CONCISE. Keep it tight.\n- 3 bullets per content slide.\n- Each bullet 4-8 words. Short, scannable phrases.`,
+  balanced:       `Density: BALANCED.\n- 4 bullets per content slide.\n- Each bullet 8-14 words. A clear, complete thought each.`,
+  detailed:       `Density: DETAILED. The user wants substance — fill the slide.\n- 4 to 5 bullets per content slide.\n- Each bullet is a full, informative sentence of 14-24 words that actually teaches something. Do NOT write short fragments.\n- Aim to use the whole slide. A near-empty detailed slide is a failure.\n- Cap each bullet at ~150 characters so it still fits on one line or two.`,
+  comprehensive:  `Density: COMPREHENSIVE. Pack the slide with real depth.\n- 5 substantial bullets per content slide.\n- Each bullet is a rich, specific sentence of 18-30 words with concrete detail, examples, or reasoning — not a vague one-liner.\n- Use the full slide. Thin content here is wrong.\n- Cap each bullet at ~180 characters so it fits the slide without overflowing.`,
 };
 
 const SYSTEM_PROMPT = `You are SlideGen, a senior presentation designer.
@@ -89,18 +89,11 @@ Layout palette — pick the BEST fit for each slide's content:
   Two decks on different topics must NOT have identical-looking title slides.
 - "bullets":     a list of points, ideas, steps, features. 3-6 bullets. The most
   common content layout, but DO NOT make every slide this.
-- "chart":       USE THIS whenever a slide is fundamentally about NUMBERS that
-  compare or trend: market share, growth over time, revenue by segment, survey
-  results, budget split, before/after metrics, percentages. Put the data in
-  "chart" with 2-7 data points. Pick the chart type that fits:
-    * "bar"   - comparing categories (revenue by region, votes per option)
-    * "line"  - a trend over ordered time (MRR by month, users by year)
-    * "area"  - a trend where the filled volume matters (cumulative growth)
-    * "pie"   - parts of a whole, 2-5 slices (market share, budget split)
-    * "donut" - same as pie, more modern look
-  Choose the chart's colors yourself when it helps (e.g. red for a declining
-  segment), or omit "color" to use the theme palette. A chart slide usually
-  has a short title and little or no bullets.
+- "chart":       a data chart, when the slide is genuinely about numbers that
+  compare or trend AND you know the real figures AND the user hasn't asked for
+  a text-only deck. Types: "bar" (compare categories), "line"/"area" (trend over
+  time), "pie"/"donut" (parts of a whole). 2-7 real data points. If the user
+  chose text-only or no visuals, do NOT use this layout at all.
 - "table":       precise tabular data where you ACTUALLY KNOW every value.
   Use only when you can fill EVERY cell with a real, specific entry (feature
   matrix, pricing tiers, spec comparison). If a column would be numbers you
@@ -136,8 +129,8 @@ HARD RULES on layout choice (this is what makes decks feel custom):
 - Do NOT lean on any one layout as a habit. A two-column comparison is only
   right when the topic truly has two parallel sides. If it doesn't, use bullets,
   a chart, or a table. There is no requirement to include a comparison slide.
-- Numbers that compare or trend -> strongly prefer "chart". Don't bury real data
-  in prose bullets.
+- Numbers that compare or trend can be a chart — but only if you know the real
+  figures and the user allows visuals. Otherwise state them in words.
 - A "section" slide must contain ONLY a title (+ optional one-line body). If you
   find yourself wanting to put points on it, it should be a "bullets" slide.
 
@@ -234,28 +227,38 @@ function buildUserMessage(opts: {
   tone?: string;
   density: ContentDensity;
   includeReferences: boolean;
+  directives?: string;
 }) {
   const refLine = opts.includeReferences
     ? `For "references": include ONLY real, verifiable sources you are confident exist. If you are not confident, return an empty references array. Never fabricate citations or URLs.`
     : `Set "references" to an empty array — the user does not want a references slide.`;
 
-  return `Create EXACTLY a ${opts.slideCount}-slide presentation. Output exactly ${opts.slideCount} entries in "slides". Not fewer. Not more. The user explicitly requested ${opts.slideCount} slides — honor that count.
+  // The clarify-step answers are the user's explicit choices. They OVERRIDE
+  // any default behavior in the system prompt. If the user said text-only,
+  // there are NO charts, period — even if a slide has numbers.
+  const directivesBlock = opts.directives && opts.directives.trim()
+    ? `\n\n=========================================================
+THE USER'S EXPLICIT CHOICES — THESE OVERRIDE EVERYTHING ELSE.
+Follow each of these to the letter. If a choice conflicts with a
+default instruction in your system prompt, the USER'S CHOICE WINS.
+${opts.directives.trim()}
+- If the user chose text-only / no visuals: output ZERO chart slides and
+  ZERO table slides. Express any numbers in words inside bullets instead.
+=========================================================\n`
+    : "";
 
-Slide structure:
-- Slide 1: title-hero
-- Slides 2 through ${opts.slideCount - 1}: choose the layout for EACH slide based on
-  what that slide's content actually is. Mix freely among bullets, chart, table,
-  two-column, and (rarely) section. Use a "chart" wherever the slide is about
-  comparable or trending numbers. Use "two-column" for any pros/cons or
-  comparison. Do NOT make every middle slide a bullets slide. (If the user's
-  brief implies an order like "Problem, Solution, Traction, Ask", follow it.)
-- Slide ${opts.slideCount}: closing
+  return `Create EXACTLY a ${opts.slideCount}-slide presentation. Output exactly ${opts.slideCount} entries in "slides". Not fewer. Not more.
+${directivesBlock}
+You decide the structure. The only fixed rules: slide 1 is "title-hero",
+slide ${opts.slideCount} is "closing". For every slide in between, YOU choose the
+title, the layout, and the content based on what actually serves the topic and
+the user's choices above. Don't follow a template. Don't force any layout.
 
 ${DENSITY_GUIDE[opts.density]}
 
 ${refLine}
 
-Read the user's brief in full. Use every relevant detail they gave you — DO NOT drop or skip parts because the brief is long. If they listed sections / topics / numbers, honor each one explicitly. If they specified an order, preserve it. If the brief contains real numbers or stats, put them in a chart rather than burying them in prose.
+Read the user's brief in full and use every relevant detail. If they listed sections, topics, or an order, honor each one. Fill each slide with real, substantive content — never leave a slide thin or a field empty. Write to the density target above; do not under-fill.
 
 User's brief:
 """
@@ -421,6 +424,8 @@ export async function generateDeck(opts: {
   tone?: string;
   density?: ContentDensity;
   includeReferences?: boolean;
+  /** Hard user directives from the pre-generation clarify step. */
+  directives?: string;
 }): Promise<Deck> {
   const density: ContentDensity = opts.density || "balanced";
   const includeReferences = opts.includeReferences !== false;
@@ -437,7 +442,7 @@ export async function generateDeck(opts: {
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: buildUserMessage({ ...opts, density, includeReferences }) },
+        { role: "user", content: buildUserMessage({ ...opts, density, includeReferences, directives: opts.directives }) },
       ],
     }),
   );

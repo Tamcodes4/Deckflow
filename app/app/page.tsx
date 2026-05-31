@@ -159,11 +159,6 @@ function PageInner() {
       }
     }
 
-    // Fold the clarifying answers into the brief as hard directives.
-    const effectivePrompt = directives
-      ? `${prompt}\n\n${directives}`
-      : prompt;
-
     setLoading(true);
     setError(null);
     // Minimum animation time of 10s so the overlay always feels intentional.
@@ -176,7 +171,7 @@ function PageInner() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ prompt: effectivePrompt, slideCount, audience, tone, density, includeReferences }),
+        body: JSON.stringify({ prompt, slideCount, audience, tone, density, includeReferences, directives }),
       }).then(async (res) => {
         if (res.status === 403) {
           // Send unverified users back to the auth gate
