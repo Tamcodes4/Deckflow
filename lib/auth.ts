@@ -281,11 +281,11 @@ export async function logout(): Promise<void> {
   writeLocal(null);
 }
 
-export async function getIdToken(): Promise<string | null> {
+export async function getIdToken(forceRefresh = false): Promise<string | null> {
   const auth = getFirebaseAuth();
   if (!auth?.currentUser) return null;
   try {
-    return await auth.currentUser.getIdToken();
+    return await auth.currentUser.getIdToken(forceRefresh);
   } catch {
     return null;
   }

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Loader2, X } from "lucide-react";
-import { getIdToken } from "@/lib/auth";
+import { getIdToken, reloadUser } from "@/lib/auth";
 
 /**
  * Pre-generation clarifying step.
@@ -56,15 +56,27 @@ export default function ClarifyDialog({
 
     (async () => {
       try {
-        const token = await getIdToken();
-        const res = await fetch("/api/clarify", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ prompt, audience, tone, slideCount }),
-        });
+        const doFetch = async (forceRefresh: boolean) => {
+          const token = await getIdToken(forceRefresh);
+          return fetch("/api/clarify", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ prompt, audience, tone, slideCount }),
+          });
+        };
+
+        let res = await doFetch(false);
+        // A freshly-verified user may still hold a token minted before
+        // verification (email_verified: false). On a 403, reload the user
+        // and retry once with a force-refreshed token before giving up.
+        if (res.status === 403) {
+          try { await reloadUser(); } catch { /* ignore */ }
+          res = await doFetch(true);
+        }
+
         const data = await res.json().catch(() => ({}));
         if (myReq !== reqIdRef.current) return;
         if (!res.ok || !Array.isArray(data?.questions) || data.questions.length === 0) {

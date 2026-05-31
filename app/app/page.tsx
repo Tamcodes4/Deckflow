@@ -17,7 +17,7 @@ import { PRESET_THEMES, getTheme, type Theme } from "@/lib/themes";
 import type { Deck, ContentDensity } from "@/lib/types";
 import { applyTemplateToSlide, type TemplateVariantDefaults } from "@/lib/templates";
 import { createDeck, loadDeck } from "@/lib/decks";
-import { logout, onAuthStateChange, getIdToken, type AppUser } from "@/lib/auth";
+import { logout, onAuthStateChange, getIdToken, reloadUser, type AppUser } from "@/lib/auth";
 import { trackEvent } from "@/lib/stats";
 import {
   DAILY_GENERATION_LIMIT, formatRefillIn,
@@ -164,25 +164,32 @@ function PageInner() {
     // Minimum animation time of 10s so the overlay always feels intentional.
     const minDelay = new Promise<void>((r) => window.setTimeout(r, 10000));
     try {
-      const token = await getIdToken();
-      const doFetch = () => fetch("/api/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ prompt, slideCount, audience, tone, density, includeReferences, directives }),
-      }).then(async (res) => {
-        if (res.status === 403) {
-          // Send unverified users back to the auth gate
-          window.location.href = `/verify-email?redirect=${encodeURIComponent("/app")}`;
-          throw new Error("Email not verified");
-        }
-        return { res, data: await res.json() };
-      });
+      const doFetch = async (forceRefresh = false) => {
+        const token = await getIdToken(forceRefresh);
+        const res = await fetch("/api/generate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ prompt, slideCount, audience, tone, density, includeReferences, directives }),
+        });
+        return { res, data: await res.json().catch(() => ({})) };
+      };
 
       const fetchPromise = (async () => {
         let { res, data } = await doFetch();
+        // A freshly-verified user may still hold a pre-verification token
+        // (email_verified: false). On 403, reload + force-refresh once
+        // before treating it as genuinely unverified.
+        if (res.status === 403) {
+          try { await reloadUser(); } catch { /* ignore */ }
+          ({ res, data } = await doFetch(true));
+          if (res.status === 403) {
+            window.location.href = `/verify-email?redirect=${encodeURIComponent("/app")}`;
+            throw new Error("Email not verified");
+          }
+        }
         // One silent retry on rate limit / parse hiccups, with a 1.5s backoff.
         if (!res.ok && (data?.code === "rate_limit" || data?.code === "parse")) {
           await new Promise((r) => setTimeout(r, 1500));
