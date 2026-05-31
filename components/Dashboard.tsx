@@ -192,7 +192,7 @@ export default function Dashboard({
         </div>
 
         {/* ---------- Header row ---------- */}
-        <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1
               className="text-[26px] font-semibold tracking-tight text-white md:text-[30px]"
@@ -585,35 +585,49 @@ function EmptyState({
     "Q1 investor update for an early-stage SaaS",
   ];
   return (
-    <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.015] px-6 py-10 sm:px-8 sm:py-12">
-      <div className="max-w-xl">
-        <h3 className="text-base font-semibold text-white">
-          Nothing here yet.
+    <div className="rounded-3xl border border-white/10 bg-white/[0.02] px-6 py-10 sm:px-10 sm:py-12">
+      <div className="mx-auto flex max-w-lg flex-col items-center text-center">
+        <h3
+          className="text-[22px] font-semibold tracking-tight text-white sm:text-[26px]"
+          style={{ fontFamily: '"Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif', letterSpacing: "-0.02em" }}
+        >
+          Make your first presentation
         </h3>
-        <p className="mt-1.5 text-[13px] text-white/55">
-          Type a one-line brief and EZdeck assembles the deck. Specific is better than long.
+        <p className="mt-2 max-w-md text-[13.5px] leading-relaxed text-white/55">
+          Type a one-line brief and EZdeck assembles a full, editable deck in
+          about ten seconds. Specific beats long. Try one of these to start:
         </p>
-        <ul className="mt-5 space-y-1.5 text-[12.5px] text-white/55">
+
+        {/* Clickable example starters */}
+        <div className="mt-6 flex w-full max-w-md flex-col gap-2">
           {examples.map((e) => (
-            <li key={e} className="flex items-start gap-2">
-              <span aria-hidden className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-cyan-300/70" />
-              <span>{e}</span>
-            </li>
+            <button
+              key={e}
+              onClick={onCreate}
+              className="group flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-4 py-2.5 text-left text-[12.5px] text-white/70 transition hover:border-white/25 hover:bg-white/[0.05] hover:text-white"
+            >
+              <span className="flex items-center gap-2.5">
+                <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--ezd-fg-strong)", opacity: 0.55 }} />
+                {e}
+              </span>
+              <ArrowRight size={13} className="shrink-0 text-white/30 transition-transform group-hover:translate-x-0.5 group-hover:text-white/70" />
+            </button>
           ))}
-        </ul>
-        <div className="mt-7 flex flex-wrap items-center gap-2">
+        </div>
+
+        <div className="mt-7 flex flex-wrap items-center justify-center gap-2.5">
           <button
             onClick={onCreate}
-            className="inline-flex items-center gap-1.5 rounded-full bg-white px-5 py-2 text-[12.5px] font-semibold text-[#03070F] transition hover:bg-white/90"
+            className="inline-flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-[12.5px] font-semibold text-[#03070F] transition hover:bg-white/90"
           >
-            <Plus size={12} /> Create your first deck
+            <Plus size={13} /> Create your first deck
           </button>
           {onTemplates && (
             <button
               onClick={onTemplates}
-              className="inline-flex items-center gap-1.5 text-[12px] text-white/55 transition hover:text-white/85"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-white/5 px-5 py-2.5 text-[12.5px] text-white/85 transition hover:bg-white/10"
             >
-              <LayoutGrid size={11} /> Or browse templates →
+              <LayoutGrid size={12} /> Browse templates
             </button>
           )}
         </div>

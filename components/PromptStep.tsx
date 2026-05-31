@@ -21,6 +21,8 @@ type Props = {
   includeReferences: boolean;
   setIncludeReferences: (v: boolean) => void;
   onNext: () => void;
+  /** Back to dashboard — shown as a plain text link in the header. */
+  onBack?: () => void;
   /** Optional: open the deck-style template gallery. */
   onUseTemplate?: () => void;
   /** When set, shows a small "Using ___" indicator next to the templates button. */
@@ -179,12 +181,9 @@ export default function PromptStep(p: Props) {
 
   return (
     <div className="fade-in mx-auto w-full max-w-6xl">
-      {/* Page header — quieter than before, no wizard chip */}
+      {/* Page header */}
       <div className="mb-8 flex flex-col items-start gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/65">
-            <Sparkles size={11} className="text-cyan-300" /> New deck
-          </div>
           <h1 className="text-3xl font-semibold tracking-tight md:text-[34px]">
             {isContent ? "Turn your content into slides" : "Tell me about the deck"}
           </h1>
@@ -194,9 +193,15 @@ export default function PromptStep(p: Props) {
               : "A sentence or two is enough. Audience and tone help, but they're optional."}
           </p>
         </div>
-        <span className="hidden text-[11px] text-white/35 sm:block">
-          {ready ? "Press ⌘ + Enter to continue" : "Step 1 of 5 · the brief"}
-        </span>
+        {p.onBack && (
+          <button
+            onClick={p.onBack}
+            className="group inline-flex items-center gap-1.5 text-[12px] text-white/55 transition hover:text-white"
+          >
+            <span aria-hidden className="transition-transform group-hover:-translate-x-0.5">←</span>
+            Dashboard
+          </button>
+        )}
       </div>
 
       {/* Input mode toggle — describe a topic, or import existing content. */}
@@ -222,7 +227,7 @@ export default function PromptStep(p: Props) {
       {/* Two-column workspace: brief on the left, side rail on the right */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
         {/* ============ LEFT: the brief ============ */}
-        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 lg:p-6">
+        <section className="rounded-2xl border border-white/20 bg-white/[0.02] p-5 lg:p-6">
           {isContent ? (
             <>
               {/* Drop zone — paste in the box, or drag a PDF/TXT/MD onto it. */}
@@ -412,45 +417,8 @@ export default function PromptStep(p: Props) {
 
         {/* ============ RIGHT: side rail ============ */}
         <aside className="space-y-4">
-          {/* Templates */}
-          {p.onUseTemplate && (
-            <button
-              onClick={p.onUseTemplate}
-              data-tour="templates"
-              className="group flex w-full items-start gap-3 rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-500/10 via-white/[0.02] to-transparent p-4 text-left transition hover:border-cyan-300/40"
-            >
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-cyan-300/30 bg-cyan-300/10 text-cyan-200">
-                <LayoutGrid size={15} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2 text-sm font-medium text-white">
-                  <span className="flex items-center gap-1.5">
-                    Use a template
-                    {p.activeTemplateName && (
-                      <span className="inline-flex items-center gap-0.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-1.5 py-0.5 text-[9px] text-emerald-200">
-                        <Check size={9} />
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-[11px] text-white/55">
-                    {p.activeTemplateName ? "Change" : "Browse"}
-                  </span>
-                </div>
-                {p.activeTemplateName ? (
-                  <p className="mt-1 truncate text-[11px] text-emerald-200/80">
-                    {p.activeTemplateName} applied
-                  </p>
-                ) : (
-                  <p className="mt-1 text-[11px] leading-relaxed text-white/55">
-                    Skip theme, font, graphic — pick a designed style and just edit the brief.
-                  </p>
-                )}
-              </div>
-            </button>
-          )}
-
           {/* Shape */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+          <div className="rounded-2xl border border-white/20 bg-white/[0.02] p-4">
             <Field label="Slides">
               <SlideCounter value={p.slideCount} onChange={p.setSlideCount} />
             </Field>
@@ -496,7 +464,54 @@ export default function PromptStep(p: Props) {
           </div>
 
           {/* Continue card */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+          <div className="rounded-2xl border border-white/20 bg-white/[0.02] p-4">
+            {/* Use a template — sits above the Choose theme button, with an
+                "or" divider so the two paths read as alternatives. */}
+            {p.onUseTemplate && (
+              <>
+                <button
+                  onClick={p.onUseTemplate}
+                  data-tour="templates"
+                  className="group flex w-full items-start gap-3 rounded-xl border border-white/10 bg-gradient-to-br from-cyan-500/10 via-white/[0.02] to-transparent p-3.5 text-left transition hover:border-cyan-300/40"
+                >
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-cyan-300/30 bg-cyan-300/10 text-cyan-200">
+                    <LayoutGrid size={15} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2 text-sm font-medium text-white">
+                      <span className="flex items-center gap-1.5">
+                        Use a template
+                        {p.activeTemplateName && (
+                          <span className="inline-flex items-center gap-0.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-1.5 py-0.5 text-[9px] text-emerald-200">
+                            <Check size={9} />
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-[11px] text-white/55">
+                        {p.activeTemplateName ? "Change" : "Browse"}
+                      </span>
+                    </div>
+                    {p.activeTemplateName ? (
+                      <p className="mt-1 truncate text-[11px] text-emerald-200/80">
+                        {p.activeTemplateName} applied
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-[11px] leading-relaxed text-white/55">
+                        A designed style — theme, font, graphic in one pick.
+                      </p>
+                    )}
+                  </div>
+                </button>
+
+                {/* or divider */}
+                <div className="my-3 flex items-center gap-3">
+                  <span className="h-px flex-1 bg-white/10" />
+                  <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-white/35">or</span>
+                  <span className="h-px flex-1 bg-white/10" />
+                </div>
+              </>
+            )}
+
             {p.activeTemplateName && p.onGenerateDirect && (
               <button
                 disabled={!ready || p.generateLoading}

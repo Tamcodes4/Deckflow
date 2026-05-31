@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import ThemeToggle from "@/components/ThemeToggle";
+import SupportButton from "@/components/SupportDialog";
 import {
   dailyActiveUsers, totalDecksGenerated, decksToday, trackEvent,
 } from "@/lib/stats";
@@ -115,12 +116,12 @@ export default function LandingPage() {
             ].join(" ")}
           >
             <a href="#how" className="transition hover:text-white">How it works</a>
-            <a href="#examples" className="transition hover:text-white">Examples</a>
             <a href="#pricing" className="transition hover:text-white">Pricing</a>
             <a href="#faq" className="transition hover:text-white">FAQ</a>
             <Link href="/about" className="transition hover:text-white">Dev&rsquo;s note</Link>
           </div>
           <div className="flex items-center gap-2">
+            <SupportButton className="hidden items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.06] px-3 py-1 text-[12px] text-white/80 transition hover:border-white/25 hover:bg-white/10 sm:inline-flex" />
             <ThemeToggle variant="pill" />
             {user ? (
               <button
@@ -203,43 +204,41 @@ export default function LandingPage() {
         </div>
 
         {/* CTAs — centered below both columns */}
-        <div className="mt-12 flex flex-col items-center gap-4">
-          <div className="flex flex-wrap items-center justify-center gap-2.5">
-            <button
-              onClick={onGetStarted}
-              className="group inline-flex items-center gap-1.5 rounded-full bg-white px-6 py-2.5 text-[13px] font-semibold text-black transition hover:bg-white/90"
-            >
-              Start a presentation
-              <ArrowRight size={12} className="transition group-hover:translate-x-0.5" />
-            </button>
+        <div className="mt-12 flex flex-col items-center gap-5">
+          <button
+            onClick={onGetStarted}
+            className="group inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 text-[14px] font-semibold text-black transition hover:bg-white/90"
+          >
+            Start a presentation
+            <ArrowRight size={14} className="transition group-hover:translate-x-0.5" />
+          </button>
+
+          <div className="flex items-center gap-5 text-[12.5px] text-white/60">
             <a
               href="#how"
-              className="group inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-6 py-2.5 text-[13px] text-white/85 transition hover:bg-white/10"
+              className="group relative inline-flex items-center gap-1.5 py-0.5 transition-colors hover:text-white"
             >
+              <ChevronDown size={13} className="transition-transform duration-300 group-hover:translate-y-0.5" />
               How it works
-              <ChevronDown size={12} className="transition group-hover:translate-y-0.5" />
+              <span
+                aria-hidden
+                className="absolute -bottom-0.5 left-0 h-px w-full origin-right scale-x-0 transition-transform duration-300 ease-out group-hover:origin-left group-hover:scale-x-100"
+                style={{ background: "var(--ezd-fg-strong)" }}
+              />
             </a>
-          </div>
-
-          {/* Changelog link — sits below the two primary CTAs */}
-          <Link
-            href="/changelog"
-            className="group inline-flex items-center gap-1.5 text-[12px] text-white/55 transition hover:text-white"
-          >
-            <GitCommit size={12} />
-            View changelog
-            <ArrowRight size={11} className="transition group-hover:translate-x-0.5" />
-          </Link>
-
-          {/* Trust line */}
-          <div className="flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 text-[10.5px] text-white/40">
-            <span>Free to draft</span>
-            <Dot />
-            <span>Real .pptx &amp; .pdf export</span>
-            <Dot />
-            <span>Pay per file</span>
-            <Dot />
-            <span>Open source</span>
+            <span className="h-3 w-px bg-white/15" aria-hidden />
+            <Link
+              href="/changelog"
+              className="group relative inline-flex items-center gap-1.5 py-0.5 transition-colors hover:text-white"
+            >
+              <GitCommit size={13} className="transition-transform duration-300 group-hover:rotate-[20deg]" />
+              Changelog
+              <span
+                aria-hidden
+                className="absolute -bottom-0.5 left-0 h-px w-full origin-right scale-x-0 transition-transform duration-300 ease-out group-hover:origin-left group-hover:scale-x-100"
+                style={{ background: "var(--ezd-fg-strong)" }}
+              />
+            </Link>
           </div>
         </div>
       </section>
@@ -979,6 +978,7 @@ function Footer({ dauToday }: { dauToday: number }) {
               >
                 <Sparkles size={11} className="text-white/70" /> Developer&rsquo;s note
               </Link>
+              <SupportButton />
             </div>
           </div>
 

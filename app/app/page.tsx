@@ -12,8 +12,6 @@ import ClarifyDialog from "@/components/ClarifyDialog";
 import TemplateGallery from "@/components/TemplateGallery";
 import OnboardingTour from "@/components/OnboardingTour";
 import Dashboard from "@/components/Dashboard";
-import Logo from "@/components/Logo";
-import ThemeToggle from "@/components/ThemeToggle";
 import { PRESET_THEMES, getTheme, type Theme } from "@/lib/themes";
 import type { Deck, ContentDensity } from "@/lib/types";
 import { applyTemplateToSlide, type TemplateVariantDefaults } from "@/lib/templates";
@@ -24,7 +22,7 @@ import {
   DAILY_GENERATION_LIMIT, formatRefillIn,
   getTodayGenerations, incrementTodayGenerations,
 } from "@/lib/usage";
-import { LogOut } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 type Step = "dashboard" | "prompt" | "theme" | "font" | "graphic" | "deck";
 
@@ -97,6 +95,8 @@ function PageInner() {
   // Pre-generation clarifying step. requestGenerate() opens this; the
   // dialog returns tap-only directives that get folded into the prompt.
   const [clarifyOpen, setClarifyOpen] = useState(false);
+  // Quota-exceeded popup (genz "chill, come back later" message).
+  const [quotaModal, setQuotaModal] = useState(false);
   // Synchronous lock so generate() can never run twice for one request
   // (would create two decks + double-charge quota).
   const generatingRef = useRef(false);
@@ -138,9 +138,7 @@ function PageInner() {
     if (user) {
       const used = await getTodayGenerations(user.uid);
       if (used >= DAILY_GENERATION_LIMIT) {
-        setError(
-          `You've used all ${DAILY_GENERATION_LIMIT} of today's free generations. Resets in ${formatRefillIn()}.`,
-        );
+        setQuotaModal(true);
         return;
       }
     }
@@ -170,9 +168,7 @@ function PageInner() {
     if (user) {
       const used = await getTodayGenerations(user.uid);
       if (used >= DAILY_GENERATION_LIMIT) {
-        setError(
-          `You've used all ${DAILY_GENERATION_LIMIT} of today's free generations. Resets in ${formatRefillIn()}.`,
-        );
+        setQuotaModal(true);
         generatingRef.current = false;
         return;
       }
@@ -312,13 +308,16 @@ function PageInner() {
   // Dashboard owns its own layout; render it standalone.
   if (isDashboard && user) {
     return (
-      <main className="min-h-screen text-white" style={{ background: "var(--ezd-bg-page)" }}>
-        <Dashboard
-          user={user}
-          onStartFromScratch={() => setStep("prompt")}
-          onStartFromTemplate={() => { setStep("prompt"); setGalleryOpen(true); }}
-          onSignOut={async () => { await logout(); router.replace("/"); }}
-        />
+      <main className="relative min-h-screen text-white" style={{ background: "var(--ezd-bg-page)" }}>
+        <div aria-hidden className="landing-bg" />
+        <div className="relative z-10">
+          <Dashboard
+            user={user}
+            onStartFromScratch={() => setStep("prompt")}
+            onStartFromTemplate={() => { setStep("prompt"); setGalleryOpen(true); }}
+            onSignOut={async () => { await logout(); router.replace("/"); }}
+          />
+        </div>
 
         {/* First-visit walkthrough still useful here. Self-disables after one show. */}
         <OnboardingTour enabled />
@@ -328,45 +327,23 @@ function PageInner() {
 
   return (
     <main
-      className={`min-h-screen ${
+      className={`relative min-h-screen ${
         fullBleed ? "px-4 py-6 sm:px-8" : "px-4 py-10 sm:px-8"
       }`}
       style={{ background: "var(--ezd-bg-page)" }}
     >
-      {!fullBleed && (
-        <header className="mx-auto mb-12 flex max-w-6xl items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center">
-              <Logo size="sm" href={null} />
-            </Link>
-            <button
-              onClick={() => setStep("dashboard")}
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/65 hover:bg-white/10 hover:text-white"
-            >
-              ← Dashboard
-            </button>
-          </div>
-          <div className="flex items-center gap-4">
-            <Stepper step={step} />
-            <ThemeToggle variant="compact" />
-            {user && (
-              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs">
-                <Link href="/app/decks" className="text-white/70 hover:text-white" data-tour="my-decks" title="My decks">
-                  My decks
-                </Link>
-                <span className="text-white/15">|</span>
-                <span className="text-white/70">{user.name || user.email}</span>
-                <button
-                  onClick={async () => { await logout(); router.replace("/"); }}
-                  title="Sign out"
-                  className="text-white/50 hover:text-white/90"
-                >
-                  <LogOut size={12} />
-                </button>
-              </div>
-            )}
-          </div>
-        </header>
+      <div aria-hidden className="landing-bg" />
+      <div className="relative z-10">
+      {!fullBleed && step !== "prompt" && (
+        <div className="mx-auto mb-6 flex max-w-6xl justify-end">
+          <button
+            onClick={() => setStep("dashboard")}
+            className="group inline-flex items-center gap-1.5 text-[12px] text-white/55 transition hover:text-white"
+          >
+            <ArrowLeft size={12} className="transition-transform group-hover:-translate-x-0.5" />
+            Dashboard
+          </button>
+        </div>
       )}
 
       {error && (
@@ -398,6 +375,7 @@ function PageInner() {
           activeTemplateName={templateName || undefined}
           onGenerateDirect={requestGenerate}
           generateLoading={loading}
+          onBack={() => setStep("dashboard")}
         />
       )}
 
@@ -489,34 +467,42 @@ function PageInner() {
 
       {/* First-visit walkthrough. Self-disables after one show. */}
       <OnboardingTour enabled={false} />
+
+      {/* Quota-exceeded popup — shown if a user hits Generate after using
+          all their daily runs. */}
+      {quotaModal && (
+        <div
+          className="fixed inset-0 z-[230] flex items-center justify-center bg-black/80 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => { if (e.target === e.currentTarget) setQuotaModal(false); }}
+        >
+          <div
+            className="w-full max-w-sm overflow-hidden rounded-2xl border p-6 text-center"
+            style={{ background: "var(--ezd-bg-elev)", borderColor: "var(--ezd-divider)" }}
+          >
+            <div className="mx-auto mb-4 text-4xl" aria-hidden>🫠</div>
+            <h3 className="text-[18px] font-semibold" style={{ color: "var(--ezd-fg-strong)" }}>
+              you maxed out the free runs
+            </h3>
+            <p className="mx-auto mt-2 max-w-[19rem] text-[13.5px] leading-relaxed" style={{ color: "var(--ezd-fg-muted)" }}>
+              real ones know the grind. you&rsquo;ve used all {DAILY_GENERATION_LIMIT} of
+              today&rsquo;s free generations. take a breather and come back &mdash; it
+              refills in <span className="font-semibold" style={{ color: "var(--ezd-fg-strong)" }}>{formatRefillIn()}</span>. no cap.
+            </p>
+            <button
+              onClick={() => setQuotaModal(false)}
+              className="mt-5 inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-[13px] font-semibold transition hover:brightness-110"
+              style={{ background: "var(--ezd-button-strong)", color: "var(--ezd-button-strong-fg)" }}
+            >
+              bet, i&rsquo;ll wait
+            </button>
+          </div>
+        </div>
+      )}
+      </div>
     </main>
   );
 }
 
-function Stepper({ step }: { step: Step }) {
-  const steps: { id: Step; label: string }[] = [
-    { id: "prompt",   label: "Prompt"   },
-    { id: "theme",    label: "Theme"    },
-    { id: "font",     label: "Font"     },
-    { id: "graphic",  label: "Graphic"  },
-    { id: "deck",     label: "Deck"     },
-  ];
-  const idx = steps.findIndex((s) => s.id === step);
-  return (
-    <div className="hidden items-center gap-3 sm:flex">
-      {steps.map((s, i) => (
-        <div key={s.id} className="flex items-center gap-3">
-          <div
-            className={`grid h-6 w-6 place-items-center rounded-full text-xs ${
-              i <= idx ? "bg-white text-black" : "bg-white/10 text-white/60"
-            }`}
-          >
-            {i + 1}
-          </div>
-          <span className={i <= idx ? "text-white" : "text-white/50"}>{s.label}</span>
-          {i < steps.length - 1 && <span className="text-white/30">→</span>}
-        </div>
-      ))}
-    </div>
-  );
-}
+

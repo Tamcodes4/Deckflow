@@ -567,8 +567,8 @@ input[type="checkbox"][class*="accent-sky-"] {
   background-color: var(--ezd-bg-page);
   /* Two layers: a faint dot grid + a whisper-soft top glow for depth. */
   background-image:
-    radial-gradient(circle at 1px 1px, rgba(15, 23, 42, 0.16) 1px, transparent 0),
-    radial-gradient(120% 80% at 50% -10%, rgba(15, 23, 42, 0.05), transparent 60%);
+    radial-gradient(circle at 1px 1px, rgba(15, 23, 42, 0.24) 1px, transparent 0),
+    radial-gradient(120% 80% at 50% -10%, rgba(15, 23, 42, 0.06), transparent 60%);
   background-size: 22px 22px, 100% 100%;
   background-position: 0 0, 0 0;
   /* Fade the whole field toward the edges so it feels intentional. */
