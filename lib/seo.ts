@@ -1,0 +1,153 @@
+/**
+ * Central SEO configuration.
+ *
+ * One source of truth for the site URL, brand, keywords, and the copy
+ * used across <head> metadata, sitemap, robots, manifest, and JSON-LD
+ * structured data.
+ *
+ * When you buy a domain, set NEXT_PUBLIC_SITE_URL in the environment
+ * (e.g. NEXT_PUBLIC_SITE_URL=https://ezdeck.app) and EVERYTHING — canonical
+ * URLs, sitemap, OpenGraph, structured data — updates automatically. No
+ * code change needed.
+ */
+
+export const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL || "https://deckflow-pi.vercel.app"
+).replace(/\/$/, "");
+
+export const BRAND = "EZdeck";
+
+/**
+ * The terms real users type. People do NOT search "deck builder" — they
+ * search "ppt maker", "free ppt", "ai ppt", "powerpoint from text". These
+ * drive the title, description, and keyword surfaces site-wide.
+ */
+export const KEYWORDS = [
+  // head terms people actually type
+  "ppt maker",
+  "free ppt maker",
+  "ai ppt maker",
+  "ppt generator",
+  "ppt maker free",
+  "ai ppt generator",
+  "powerpoint ai",
+  "ai powerpoint generator",
+  "presentation maker",
+  "free presentation maker",
+  "ai presentation maker",
+  "make ppt online",
+  "create ppt from text",
+  "ppt from text",
+  "ai slides generator",
+  "pptx generator",
+  "online ppt maker free",
+  "presentation generator",
+  "slide maker",
+  "ai slide maker",
+  "powerpoint generator free",
+  "text to ppt",
+  "text to presentation",
+  "ppt creator",
+  "free pptx maker",
+];
+
+export const DEFAULT_TITLE =
+  "EZdeck — Free AI PPT Maker | Make PowerPoint Presentations from Text";
+
+export const TITLE_TEMPLATE = "%s | EZdeck — AI PPT Maker";
+
+export const DEFAULT_DESCRIPTION =
+  "Free AI PPT maker. Type a topic and get an editable PowerPoint presentation in seconds — real charts, themes, and one-click PPTX and PDF export. The fastest free online AI presentation generator. No template wrestling, no subscription.";
+
+export const SHORT_DESCRIPTION =
+  "Make PowerPoint presentations from text for free with AI. Editable slides in seconds, real PPTX & PDF export.";
+
+/** FAQ pairs — surfaced visibly on the landing AND as FAQPage JSON-LD.
+ *  Written around the exact questions people search. */
+export const FAQ: { q: string; a: string }[] = [
+  {
+    q: "Is EZdeck a free PPT maker?",
+    a: "Yes. You can generate, edit, preview, and present any presentation for free. You only pay a small one-time fee when you want to download the editable PowerPoint (.pptx) or PDF file. There is no subscription.",
+  },
+  {
+    q: "How do I make a PowerPoint presentation from text?",
+    a: "Type a one-line brief describing your topic, answer a few quick questions about what you want, and EZdeck's AI writes and designs a full slide deck in seconds. You can then edit every slide and export it to PowerPoint or PDF.",
+  },
+  {
+    q: "Can I export to real PowerPoint (PPTX)?",
+    a: "Yes. EZdeck exports a real Microsoft PowerPoint (.pptx) file that opens and edits in PowerPoint, Keynote, and Google Slides, plus a high-resolution PDF. Your text, charts, themes, and images are preserved.",
+  },
+  {
+    q: "Does the AI create charts and graphs?",
+    a: "Yes. When your topic has real data, EZdeck generates clean bar, line, pie, and donut charts directly on the slides, colored to match your theme. If a topic has no real numbers, it stays text-only instead of inventing data.",
+  },
+  {
+    q: "Is EZdeck better than other AI presentation makers?",
+    a: "EZdeck gives you a real inline editor (not a one-shot generator), genuine PowerPoint and PDF export with no lock-in, pay-per-file pricing instead of a subscription, and an AI that asks what you want before building. Generation takes about ten seconds.",
+  },
+  {
+    q: "How long does it take to make a presentation?",
+    a: "About ten seconds to generate the first draft. From a blank brief to a finished, exported deck, most people are done in under a minute.",
+  },
+];
+
+/** Global JSON-LD: the app itself, the brand, and the website. */
+export function softwareJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: "EZdeck",
+    alternateName: ["EZdeck AI PPT Maker", "EZdeck Presentation Maker"],
+    url: SITE_URL,
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    description: DEFAULT_DESCRIPTION,
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+      description: "Free to generate, edit, and present. Pay once per file to download.",
+    },
+    featureList: [
+      "AI PowerPoint generation from a text prompt",
+      "Editable slides with drag-and-drop",
+      "Real PPTX and PDF export",
+      "AI-generated charts and diagrams",
+      "200,000+ icons",
+      "32 themes and 18 fonts",
+    ],
+    browserRequirements: "Requires a modern web browser.",
+  };
+}
+
+export function organizationJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: BRAND,
+    url: SITE_URL,
+    logo: `${SITE_URL}/icon`,
+    sameAs: ["https://github.com/izhan0102/Deckflow"],
+  };
+}
+
+export function websiteJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: BRAND,
+    url: SITE_URL,
+  };
+}
+
+export function faqJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQ.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
+}

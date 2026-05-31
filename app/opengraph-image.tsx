@@ -10,7 +10,7 @@ import { ImageResponse } from "next/og";
  */
 
 export const runtime = "edge";
-export const alt = "EZdeck — Presentations, written and designed.";
+export const alt = "EZdeck — Free AI PPT Maker. Make PowerPoint presentations from text.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -85,17 +85,17 @@ export default async function OG() {
               marginBottom: 24,
             }}
           >
-            ISSUE 01 · SLIDES, REIMAGINED
+            FREE AI PPT MAKER
           </div>
           <div
             style={{
-              fontSize: 88,
+              fontSize: 82,
               fontWeight: 800,
               lineHeight: 0.98,
               letterSpacing: "-0.03em",
             }}
           >
-            Slides that finish themselves.
+            PowerPoint from a single prompt.
           </div>
           <div
             style={{
@@ -105,7 +105,7 @@ export default async function OG() {
               lineHeight: 1.4,
             }}
           >
-            Write a brief. Watch the deck assemble. Keep editing until it sounds like you.
+            Type a topic. Get an editable presentation in seconds. Real PPTX & PDF export, free to try.
           </div>
         </div>
 

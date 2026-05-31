@@ -2,31 +2,55 @@ import "./globals.css";
 import type { Metadata } from "next";
 import MobileGate from "@/components/MobileGate";
 import { THEME_BOOT_SCRIPT } from "@/lib/theme";
+import {
+  SITE_URL, BRAND, KEYWORDS, DEFAULT_TITLE, TITLE_TEMPLATE, DEFAULT_DESCRIPTION,
+  softwareJsonLd, organizationJsonLd, websiteJsonLd,
+} from "@/lib/seo";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://deckflow-pi.vercel.app"),
-  title: "EZdeck — Presentations from a prompt",
-  description:
-    "Type a topic, pick a theme, get a polished deck. EZdeck writes, designs, and exports PowerPoint-ready presentations in seconds.",
-  applicationName: "EZdeck",
-  keywords: [
-    "AI presentation maker", "PowerPoint AI", "deck builder", "AI slides",
-    "free presentation tool", "PPTX generator", "PDF export", "open source",
-  ],
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: DEFAULT_TITLE,
+    template: TITLE_TEMPLATE,
+  },
+  description: DEFAULT_DESCRIPTION,
+  applicationName: BRAND,
+  keywords: KEYWORDS,
+  authors: [{ name: "Muhammad Izhan" }],
+  creator: "Muhammad Izhan",
+  publisher: BRAND,
+  category: "Productivity",
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   openGraph: {
-    title: "EZdeck — Presentations from a prompt",
-    description:
-      "Type a topic, pick a theme, get a polished deck. Real PPTX and PDF export.",
-    url: "https://deckflow-pi.vercel.app",
-    siteName: "EZdeck",
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    url: SITE_URL,
+    siteName: BRAND,
     locale: "en_US",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "EZdeck — Presentations from a prompt",
-    description:
-      "Type a topic, pick a theme, get a polished deck. Real PPTX and PDF export.",
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    creator: "@izhan0102",
+  },
+  icons: {
+    icon: "/icon",
+    apple: "/icon",
   },
 };
 
@@ -66,6 +90,23 @@ export default function RootLayout({
             data-theme on <html> so light-mode users don't see a
             dark flash on load. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+
+        {/* Structured data — tells Google this is a free web app for
+            making PowerPoint presentations, plus the brand/site graph.
+            Rich-result eligible and a strong relevance signal. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd()) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd()) }}
+        />
+
         {/* Preconnect speeds up the first paint of any font we end up using. */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

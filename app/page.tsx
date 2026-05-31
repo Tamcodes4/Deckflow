@@ -12,6 +12,7 @@ import {
   dailyActiveUsers, totalDecksGenerated, decksToday, trackEvent,
 } from "@/lib/stats";
 import { isLoggedIn, logout, onAuthStateChange, type AppUser } from "@/lib/auth";
+import { FAQ, faqJsonLd } from "@/lib/seo";
 
 /**
  * Landing — center-stage variant.
@@ -66,6 +67,13 @@ export default function LandingPage() {
       className="relative min-h-screen overflow-x-hidden"
       style={{ background: "var(--ezd-bg-page)", color: "var(--ezd-fg)" }}
     >
+      {/* FAQ structured data — eligible for Google's FAQ rich result and a
+          strong relevance signal for "how to make a ppt free" style queries. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd()) }}
+      />
+
       <BackgroundField />
 
       {/* ================== Nav ==================
@@ -109,6 +117,7 @@ export default function LandingPage() {
             <a href="#how" className="transition hover:text-white">How it works</a>
             <a href="#examples" className="transition hover:text-white">Examples</a>
             <a href="#pricing" className="transition hover:text-white">Pricing</a>
+            <a href="#faq" className="transition hover:text-white">FAQ</a>
             <Link href="/about" className="transition hover:text-white">Dev&rsquo;s note</Link>
           </div>
           <div className="flex items-center gap-2">
@@ -159,6 +168,13 @@ export default function LandingPage() {
           Write a brief.
           <br />
           <span className="text-white/55">Get an editable presentation.</span>
+          {/* Keyword context for search engines + screen readers. Visually
+              hidden, fully truthful, not cloaking — describes exactly what
+              the product is. */}
+          <span className="sr-only">
+            {" "}EZdeck is a free AI PPT maker that turns your text into an
+            editable PowerPoint presentation with one-click PPTX and PDF export.
+          </span>
         </h1>
 
         {/* Accent underline under the heading */}
@@ -292,6 +308,16 @@ export default function LandingPage() {
         </p>
       </section>
 
+      {/* ================== FAQ ================== */}
+      <section id="faq" className="relative z-10 mx-auto max-w-3xl px-6 pb-20">
+        <SectionLabel center kicker="FAQ" title="Questions about the AI PPT maker" />
+        <div className="mx-auto mt-9 max-w-2xl divide-y divide-white/8 border-y border-white/8">
+          {FAQ.map((item) => (
+            <FaqItem key={item.q} q={item.q} a={item.a} />
+          ))}
+        </div>
+      </section>
+
       {/* ================== Final CTA ================== */}
       <section className="relative z-10 mx-auto max-w-4xl px-6 pb-16 pt-4 text-center">
         <h2
@@ -334,6 +360,27 @@ export default function LandingPage() {
 
 function Dot() {
   return <span aria-hidden className="text-white/15">·</span>;
+}
+
+/* ----------------------- FAQ item ----------------------- */
+
+function FaqItem({ q, a }: { q: string; a: string }) {
+  // Native <details> so the answer text is always in the DOM for crawlers
+  // even when visually collapsed. Accessible and zero-JS.
+  return (
+    <details className="group">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-left text-[15px] font-medium text-white [&::-webkit-details-marker]:hidden">
+        <span>{q}</span>
+        <span
+          aria-hidden
+          className="shrink-0 text-white/40 transition-transform duration-200 group-open:rotate-45"
+        >
+          +
+        </span>
+      </summary>
+      <p className="pb-4 pr-8 text-[13.5px] leading-relaxed text-white/60">{a}</p>
+    </details>
+  );
 }
 
 /* ----------------------- Reviews ----------------------- */

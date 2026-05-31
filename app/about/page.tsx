@@ -5,9 +5,10 @@ import Logo from "@/components/Logo";
 import { LEGAL } from "@/lib/legal";
 
 export const metadata: Metadata = {
-  title: "About · EZdeck",
+  title: "About",
   description:
-    "A note from the developer of EZdeck — what I built, why I built it, and how to get in touch.",
+    "A note from the developer of EZdeck — the free AI PPT maker. What I built, why I built it, and how to get in touch.",
+  alternates: { canonical: "/about" },
 };
 
 /**
