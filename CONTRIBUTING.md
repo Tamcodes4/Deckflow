@@ -213,8 +213,6 @@ Also check:
 - If you changed `SlideCanvas`, you tested the editor, thumbnail rail, presenter mode, and PDF export
 - If you changed `lib/types.ts`, all consumers (editor, export route, share viewer) handle the new or changed field gracefully
 - If you added a template, it renders correctly across at least three themes
-- If you changed the UI, you tested it at 375 px (mobile) and 1280 px (desktop)
-- No `console.log()` or debug statements remain in your code
 - No `.env.local` values or secrets are committed
 
 ---
