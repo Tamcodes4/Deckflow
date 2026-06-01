@@ -123,7 +123,8 @@ export default function ShareViewer({ params }: { params: { id: string } }) {
         // Quick "press P to present" shortcut — same as the editor.
         setPresenting(true);
       } else if (e.key.toLowerCase() === "n") {
-        setShowNotes((s) => !s);
+        const hasNotes = data.deck.slides.some((s) => !!s.notes);
+        if (hasNotes) setShowNotes((s) => !s);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -167,6 +168,10 @@ export default function ShareViewer({ params }: { params: { id: string } }) {
   const enriched = slide.layout === "references"
     ? { ...slide, references: deck.references || [] }
     : slide;
+
+  const hasNotes = useMemo(() => {
+    return deck.slides.some((s) => !!s.notes);
+  }, [deck.slides]);
 
   const onCopyLink = async () => {
     try {
@@ -225,13 +230,15 @@ export default function ShareViewer({ params }: { params: { id: string } }) {
           </div>
 
           <div className="flex items-center gap-1.5">
-            <ToolbarButton
-              icon={showNotes ? <Check size={12} /> : <StickyNote size={12} />}
-              label={showNotes ? "Notes on" : "Notes"}
-              active={showNotes}
-              onClick={() => setShowNotes((s) => !s)}
-              hint="Press N"
-            />
+            {hasNotes && (
+              <ToolbarButton
+                icon={showNotes ? <Check size={12} /> : <StickyNote size={12} />}
+                label={showNotes ? "Notes on" : "Notes"}
+                active={showNotes}
+                onClick={() => setShowNotes((s) => !s)}
+                hint="Press N"
+              />
+            )}
             <ToolbarButton
               icon={copied ? <Check size={12} className="text-emerald-300" /> : <Copy size={12} />}
               label={copied ? "Copied" : "Copy link"}
@@ -340,7 +347,7 @@ export default function ShareViewer({ params }: { params: { id: string } }) {
             <KeyHint label="Prev" keys={["←"]} />
             <KeyHint label="Next" keys={["→"]} />
             <KeyHint label="Present" keys={["P"]} />
-            <KeyHint label="Notes" keys={["N"]} />
+            {hasNotes && <KeyHint label="Notes" keys={["N"]} />}
             <KeyHint label="First / Last" keys={["Home", "End"]} />
           </div>
         </div>

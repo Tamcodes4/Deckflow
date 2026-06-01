@@ -216,10 +216,21 @@ export async function publishDeck(uid: string, deckId: string): Promise<string> 
   const stored = await loadDeck(uid, deckId);
   if (!stored) throw new Error("Deck not found.");
   const shareId = stored.shareId || `s_${rid()}`;
+
+  // Strip presenter notes from the public shared copy
+  const cleanSlides = stored.deck.slides.map((s) => {
+    const { notes, ...rest } = s;
+    return rest;
+  });
+  const cleanDeck = {
+    ...stored.deck,
+    slides: cleanSlides,
+  };
+
   await set(ref(db, `shared/${shareId}`), sanitize({
     ownerUid: uid,
     deckId,
-    deck: stored.deck,
+    deck: cleanDeck,
     theme: stored.theme,
     title: stored.meta?.title || "Deck",
     publishedAt: serverTimestamp(),
