@@ -4,6 +4,8 @@ import { withGroqClient } from "@/lib/groqClient";
 import { getDecoration, DECORATIONS } from "@/lib/decorations";
 import { searchIconify } from "@/lib/iconify";
 import { authenticateRequest, AuthError } from "@/lib/firebaseAdmin";
+import { rateLimit } from "@/lib/rateLimit";
+import { headers } from "next/headers";
 import { cleanChartSpec } from "@/lib/charts";
 
 export const runtime = "nodejs";
@@ -791,6 +793,19 @@ async function applyPatch(slide: Slide, patch: any): Promise<Slide> {
 /* ------------------------------- POST handler ------------------------------ */
 
 export async function POST(req: NextRequest) {
+  
+  const headersList = headers();
+  const ip = headersList.get("x-forwarded-for") ?? "unknown";
+  const { allowed, retryAfter } = rateLimit(ip);
+  if (!allowed) {
+    return new Response(JSON.stringify({ error: "Too many requests" }), {
+      status: 429,
+      headers: {
+        "Content-Type": "application/json",
+        "Retry-After": String(retryAfter),
+      },
+    });
+  }
   try {
     const uid = await authenticateRequest(req);
     const { deck, theme, slideIndex, instruction, history } = (await req.json()) as {
