@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowUp, GitCommit } from "lucide-react";
+import { ArrowLeft, ArrowUp, ChevronDown, ExternalLink, GitCommit } from "lucide-react";
 import Logo from "@/components/Logo";
-import type { ReleaseGroup, ChangeKind } from "@/lib/changelog";
+import type { ReleaseGroup, ChangeKind, ChangeItem } from "@/lib/changelog";
 
 const KIND_LABEL: Record<ChangeKind, string> = {
   new: "New",
@@ -193,90 +193,11 @@ export default function ChangelogView({ groups }: { groups: ReleaseGroup[] }) {
 
         {/* One snap section per release */}
         {groups.map((g, i) => (
-          <section
+          <ReleaseSection
             key={g.iso}
-            ref={(el) => { sectionRefs.current[i] = el; }}
-            className="cl-section relative flex min-h-screen snap-start snap-always items-center px-6 py-24"
-          >
-            {/* Ghost version watermark */}
-            <span
-              aria-hidden
-              className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 select-none font-bold leading-none text-white/[0.03]"
-              style={{
-                fontFamily: '"Fredoka", system-ui, sans-serif',
-                fontSize: "clamp(120px, 26vw, 340px)",
-                letterSpacing: "-0.04em",
-              }}
-            >
-              {g.version}
-            </span>
-
-            <div className="relative z-10 mx-auto w-full max-w-3xl">
-              {/* Release head */}
-              <div className="cl-reveal flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                <h2
-                  className="font-semibold tabular-nums text-white"
-                  style={{
-                    fontFamily: '"Fredoka", system-ui, sans-serif',
-                    fontSize: "clamp(40px, 7vw, 72px)",
-                    letterSpacing: "-0.03em",
-                    lineHeight: 1,
-                  }}
-                >
-                  {g.version}
-                </h2>
-                <span className="text-[13px] font-medium uppercase tracking-[0.2em] text-white/45">
-                  {g.label}
-                </span>
-              </div>
-
-              <div className="mt-3 flex items-center gap-3 cl-reveal" style={{ transitionDelay: "60ms" }}>
-                <span className="h-px w-12" style={{ background: "var(--ezd-fg-strong)" }} />
-                <span className="text-[12px] text-white/40">
-                  {g.items.length} change{g.items.length === 1 ? "" : "s"}
-                </span>
-              </div>
-
-              {/* Items */}
-              <ul className="mt-8 space-y-3">
-                {g.items.map((it, j) => (
-                  <li
-                    key={it.sha}
-                    className="cl-reveal group rounded-2xl border border-white/10 bg-white/[0.025] p-4 transition-all duration-300 hover:border-white/25 hover:bg-white/[0.05]"
-                    style={{ transitionDelay: `${Math.min(j, 8) * 55 + 120}ms` }}
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <KindBadge kind={it.kind} />
-                      <span className="text-[15px] font-medium leading-snug text-white">
-                        {it.title}
-                      </span>
-                    </div>
-
-                    {it.body.length > 0 && (
-                      <ul className="mt-2 space-y-1 pl-0.5">
-                        {it.body.map((b, k) => (
-                          <li key={k} className="flex gap-2 text-[12.5px] leading-relaxed text-white/55">
-                            <span className="text-white/30">—</span>
-                            <span>{b}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-
-                    <a
-                      href={it.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-2.5 inline-flex items-center gap-1 text-[11px] text-white/35 transition group-hover:text-white/70"
-                    >
-                      <GitCommit size={11} />
-                      {it.shortSha} · {it.author}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
+            group={g}
+            setRef={(el) => { sectionRefs.current[i] = el; }}
+          />
         ))}
 
         {/* Closing snap panel */}
@@ -352,6 +273,17 @@ export default function ChangelogView({ groups }: { groups: ReleaseGroup[] }) {
           will-change: auto;
         }
 
+        /* Cards animate themselves on mount (no observer dependency), so
+           rows revealed by "Show more" always fade in instead of staying
+           invisible. */
+        .cl-card {
+          animation: cl-card-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        @keyframes cl-card-in {
+          from { opacity: 0; transform: translateY(14px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
         .cl-bounce { animation: cl-bounce 1.6s ease-in-out infinite; }
         @keyframes cl-bounce {
           0%, 100% { transform: translateY(0); opacity: 0.6; }
@@ -360,11 +292,139 @@ export default function ChangelogView({ groups }: { groups: ReleaseGroup[] }) {
 
         @media (prefers-reduced-motion: reduce) {
           .cl-reveal { opacity: 1; transform: none; transition: none; }
+          .cl-card { animation: none; }
           .cl-bounce { animation: none; }
           .cl-scroller { scroll-behavior: auto; }
         }
       `}</style>
     </div>
+  );
+}
+
+function ReleaseSection({
+  group, setRef,
+}: { group: ReleaseGroup; setRef: (el: HTMLElement | null) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const COLLAPSED = 2;
+  const items = group.items;
+  const visible = expanded ? items : items.slice(0, COLLAPSED);
+  const hidden = items.length - COLLAPSED;
+
+  return (
+    <section
+      ref={setRef}
+      className="cl-section relative flex min-h-screen snap-start snap-always items-center px-6 py-24"
+    >
+      {/* Ghost version watermark */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 select-none font-bold leading-none text-white/[0.03]"
+        style={{
+          fontFamily: '"Fredoka", system-ui, sans-serif',
+          fontSize: "clamp(120px, 26vw, 340px)",
+          letterSpacing: "-0.04em",
+        }}
+      >
+        {group.version}
+      </span>
+
+      <div className="relative z-10 mx-auto w-full max-w-3xl">
+        {/* Release head */}
+        <div className="cl-reveal flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <h2
+            className="font-semibold tabular-nums text-white"
+            style={{
+              fontFamily: '"Fredoka", system-ui, sans-serif',
+              fontSize: "clamp(40px, 7vw, 72px)",
+              letterSpacing: "-0.03em",
+              lineHeight: 1,
+            }}
+          >
+            {group.version}
+          </h2>
+          <span className="text-[13px] font-medium uppercase tracking-[0.2em] text-white/45">
+            {group.label}
+          </span>
+        </div>
+
+        <div className="mt-3 flex items-center gap-3 cl-reveal" style={{ transitionDelay: "60ms" }}>
+          <span className="h-px w-12" style={{ background: "var(--ezd-fg-strong)" }} />
+          <span className="text-[12px] text-white/40">
+            {items.length} change{items.length === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        {/* Items — collapsed to 2 cards until expanded */}
+        <ul className="mt-8 space-y-3">
+          {visible.map((it, j) => (
+            <ChangeCard key={it.sha} item={it} delayMs={Math.min(j, 8) * 55 + 120} />
+          ))}
+        </ul>
+
+        {/* Show more / less — only when there's more than the collapsed count */}
+        {items.length > COLLAPSED && (
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="cl-reveal mt-4 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-4 py-1.5 text-[12px] text-white/70 transition hover:border-white/30 hover:bg-white/10 hover:text-white"
+          >
+            {expanded ? "Show less" : `Show ${hidden} more`}
+            <ChevronDown
+              size={13}
+              className={`transition-transform duration-300 ${expanded ? "rotate-180" : ""}`}
+            />
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ChangeCard({ item: it, delayMs }: { item: ChangeItem; delayMs: number }) {
+  return (
+    <li
+      className="cl-card group relative rounded-2xl border border-white/10 bg-white/[0.025] p-4 transition-all duration-300 hover:border-white/30 hover:bg-white/[0.05]"
+      style={{ animationDelay: `${delayMs}ms` }}
+    >
+      <div className="flex flex-wrap items-center gap-2 pr-24">
+        <KindBadge kind={it.kind} />
+        <span className="text-[15px] font-medium leading-snug text-white">
+          {it.title}
+        </span>
+      </div>
+
+      {it.body.length > 0 && (
+        <ul className="mt-2 space-y-1 pl-0.5">
+          {it.body.map((b, k) => (
+            <li key={k} className="flex gap-2 text-[12.5px] leading-relaxed text-white/55">
+              <span className="text-white/30">—</span>
+              <span>{b}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Commit ref — always visible (theme-aware), brightens on hover. */}
+      <a
+        href={it.url}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-2.5 inline-flex items-center gap-1 text-[11px] text-white/45 underline-offset-2 transition hover:text-white hover:underline"
+      >
+        <GitCommit size={11} />
+        {it.shortSha} · {it.author}
+      </a>
+
+      {/* "details" hint — top-right, points to the GitHub commit. */}
+      <a
+        href={it.url}
+        target="_blank"
+        rel="noreferrer"
+        title="View this commit on GitHub"
+        className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border border-white/12 bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-white/55 opacity-0 transition group-hover:opacity-100 hover:border-white/30 hover:text-white"
+      >
+        Details <ExternalLink size={9} />
+      </a>
+    </li>
   );
 }
 

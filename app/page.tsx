@@ -995,6 +995,7 @@ function Footer({ dauToday }: { dauToday: number }) {
             title="Company"
             items={[
               { label: "About / Dev's note", href: "/about" },
+              { label: "Leave a review", href: "/feedback" },
               { label: "Contact", href: "/contact" },
               { label: "Sign in", href: "/auth" },
             ]}

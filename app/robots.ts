@@ -23,6 +23,7 @@ export default function robots(): MetadataRoute.Robots {
           "/verify-email",
           "/payment-success",
           "/preview/",
+          "/reviews",
         ],
       },
     ],
