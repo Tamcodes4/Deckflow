@@ -40,24 +40,26 @@ export default function TermsPage() {
       <p>
         EZdeck is a software-as-a-service product that uses generative AI
         to produce, edit, and export presentation files based on user
-        prompts and uploads. The Service is offered on an "as is" basis.
-        Features and prices may change; we will provide reasonable notice
-        of material changes.
+        prompts and uploads. The Service is offered on an "as is" basis and
+        is free to use. Features may change; we will provide reasonable
+        notice of material changes.
       </p>
 
-      <h2>4. Pricing and Payments</h2>
+      <h2>4. Pricing</h2>
       <ul>
-        <li>Generation, editing, and previewing of decks within the Service is free of charge.</li>
-        <li>Downloading a deck as a Microsoft PowerPoint (<code>.pptx</code>) file is a flat one-time fee of INR {LEGAL.PRICE_PER_DECK_INR} per deck, regardless of slide count. The total amount is shown in a confirmation dialog before payment.</li>
-        <li>Payments are one-time. There are no subscriptions, no auto-pay, and no recurring charges. You pay only for the deck you choose to download, when you choose to download it.</li>
-        <li>All payments are processed through Razorpay Software Private Limited. By providing payment details you authorize us, through Razorpay, to charge the displayed amount, including applicable taxes.</li>
-        <li>Once payment succeeds, the corresponding download is unlocked for that deck. Edits made after download will require a new payment if you want to download an updated version.</li>
+        <li>EZdeck is free. Generating, editing, previewing, presenting, and downloading decks as PowerPoint (<code>.pptx</code>) or PDF files costs nothing.</li>
+        <li>There are no subscriptions, no per-file fees, and no payment details required to use any feature of the Service.</li>
+        <li>Before your first export we ask you to leave a short, one-time review of the product. This is feedback only — no payment is involved.</li>
+        <li>Daily generation quotas may apply to keep the Service available to everyone. These limits may change over time.</li>
       </ul>
 
-      <h2>5. Refunds</h2>
+      <h2>5. Feedback and Reviews</h2>
       <p>
-        Refund eligibility, timelines, and procedure are described in our
-        Refund & Cancellation Policy, which forms part of these Terms.
+        Reviews and feedback you submit may be displayed publicly on the
+        Service (for example, on the landing page). By submitting a review
+        you grant us permission to display the name, role, rating, and text
+        you provide. Do not include confidential or personal information you
+        do not want shown publicly.
       </p>
 
       <h2>6. User Content</h2>
@@ -104,7 +106,7 @@ export default function TermsPage() {
 
       <h2>10. Third-Party Services</h2>
       <p>
-        The Service relies on third-party providers for payments, hosting,
+        The Service relies on third-party providers for hosting,
         authentication, and AI inference. Your use of these providers'
         features may be subject to their separate terms and privacy
         policies.
@@ -125,8 +127,7 @@ export default function TermsPage() {
         NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL,
         OR EXEMPLARY DAMAGES, OR ANY LOSS OF PROFITS, REVENUES, DATA, OR
         GOODWILL. OUR TOTAL AGGREGATE LIABILITY ARISING OUT OF OR RELATING
-        TO THE SERVICE WILL NOT EXCEED THE GREATER OF (A) THE AMOUNTS PAID
-        BY YOU TO US IN THE 12 MONTHS PRECEDING THE CLAIM, OR (B) INR 1,000.
+        TO THE SERVICE WILL NOT EXCEED INR 1,000.
       </p>
 
       <h2>13. Indemnification</h2>
@@ -140,8 +141,8 @@ export default function TermsPage() {
       <h2>14. Termination</h2>
       <p>
         You may stop using the Service at any time. We may suspend or
-        terminate your access for violation of these Terms, non-payment, or
-        prolonged inactivity. On termination your right to use the Service
+        terminate your access for violation of these Terms or prolonged
+        inactivity. On termination your right to use the Service
         ceases; sections that by their nature should survive (including
         Sections 6, 9–13) will survive.
       </p>

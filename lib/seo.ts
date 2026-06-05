@@ -67,7 +67,7 @@ export const SHORT_DESCRIPTION =
 export const FAQ: { q: string; a: string }[] = [
   {
     q: "Is EZdeck a free PPT maker?",
-    a: "Yes. You can generate, edit, preview, and present any presentation for free. You only pay a small one-time fee when you want to download the editable PowerPoint (.pptx) or PDF file. There is no subscription.",
+    a: "Yes, completely free. You can generate, edit, preview, present, and download any presentation as a PowerPoint (.pptx) or PDF file at no cost. There is no subscription and no per-file fee.",
   },
   {
     q: "How do I make a PowerPoint presentation from text?",
@@ -83,7 +83,7 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Is EZdeck better than other AI presentation makers?",
-    a: "EZdeck gives you a real inline editor (not a one-shot generator), genuine PowerPoint and PDF export with no lock-in, pay-per-file pricing instead of a subscription, and an AI that asks what you want before building. Generation takes about ten seconds.",
+    a: "EZdeck gives you a real inline editor (not a one-shot generator), genuine PowerPoint and PDF export with no lock-in, completely free with no subscription, and an AI that asks what you want before building. Generation takes about ten seconds.",
   },
   {
     q: "How long does it take to make a presentation?",

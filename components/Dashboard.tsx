@@ -2,13 +2,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowRight, Clock, Crown, FileText, Home, Info, LayoutGrid,
-  Loader2, LogOut, Plus, Search, Trash2, Wand2, X, Zap,
+  ArrowRight, Clock, FileText, Gift, Home, Info, LayoutGrid,
+  Loader2, LogOut, Plus, Search, Sparkles, Trash2, Wand2, X, Zap,
 } from "lucide-react";
 import { type AppUser } from "@/lib/auth";
 import { deleteDeck, watchDeckList, type DeckListItem } from "@/lib/decks";
-import { getFirebaseDb } from "@/lib/firebase";
-import { onValue, ref } from "firebase/database";
 import DeckThumbnail from "./DeckThumbnail";
 import Logo from "./Logo";
 import ThemeToggle from "./ThemeToggle";
@@ -24,11 +22,10 @@ import {
  *     daily quota meter + user profile + sign out.
  *   - Main: minimal — a header with the user's name, two compact action
  *     buttons (New deck / Templates), an optional "continue working"
- *     card, then the decks grid with search + filter.
+ *     card, then the decks grid with search.
  *
- * The shape of the "decks" list comes from watchDeckList(). The "paid"
- * flag is read from a separate Firebase listener so unlock status updates
- * live across tabs.
+ * The shape of the "decks" list comes from watchDeckList(). Everything
+ * is free, so there is no unlock/paid state to track.
  */
 
 type Props = {
@@ -40,18 +37,28 @@ type Props = {
   onSignOut: () => void | Promise<void>;
 };
 
-type Filter = "all" | "unlocked" | "drafts";
 
 export default function Dashboard({
   user, onStartFromScratch, onStartFromTemplate, onSignOut,
 }: Props) {
   const [decks, setDecks] = useState<DeckListItem[]>([]);
-  const [paidIds, setPaidIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
   const [todayGenerations, setTodayGenerations] = useState(0);
+
+  // "EZdeck is now free" announcement. Shows on every visit (session-only
+  // dismiss) until the user opts out via the "Don't show again" checkbox,
+  // which persists to localStorage. This is intentionally not finalised
+  // yet, so the default is to keep reminding people.
+  const [freeBanner, setFreeBanner] = useState(false);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem("ezdeck_free_banner_off") !== "1") {
+        setFreeBanner(true);
+      }
+    } catch { setFreeBanner(true); }
+  }, []);
 
   // Live deck list.
   useEffect(() => {
@@ -65,21 +72,6 @@ export default function Dashboard({
   // Live daily generation count.
   useEffect(() => {
     const unsub = watchTodayGenerations(user.uid, setTodayGenerations);
-    return () => unsub();
-  }, [user.uid]);
-
-  // Live `paid` flags.
-  useEffect(() => {
-    const db = getFirebaseDb();
-    if (!db) return;
-    const unsub = onValue(ref(db, `decks/${user.uid}`), (snap) => {
-      const val = snap.val() || {};
-      const ids = new Set<string>();
-      for (const [id, row] of Object.entries(val as Record<string, any>)) {
-        if (row?.paid?.paidAt) ids.add(id);
-      }
-      setPaidIds(ids);
-    });
     return () => unsub();
   }, [user.uid]);
 
@@ -97,15 +89,13 @@ export default function Dashboard({
   const visibleDecks = useMemo(() => {
     const q = query.trim().toLowerCase();
     return decks.filter((d) => {
-      if (filter === "unlocked" && !paidIds.has(d.id)) return false;
-      if (filter === "drafts" && paidIds.has(d.id)) return false;
       if (q) {
         const hay = `${d.title} ${d.subtitle ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [decks, paidIds, query, filter]);
+  }, [decks, query]);
 
   return (
     <div className="min-h-screen lg:pl-[260px]">
@@ -143,8 +133,8 @@ export default function Dashboard({
             Heads up
           </div>
           <p className="mt-1.5 leading-relaxed">
-            Generate, edit, and present every deck for free. Pay ₹15 only when
-            you decide to download.
+            Everything is free — generate, edit, present, and download as
+            many decks as you like.
           </p>
         </div>
 
@@ -180,6 +170,17 @@ export default function Dashboard({
 
       {/* ============== Main ============== */}
       <main className="px-4 py-8 sm:px-8 lg:px-12 lg:py-10">
+        {/* "Now free" announcement */}
+        {freeBanner && (
+          <FreeBanner
+            onClose={() => setFreeBanner(false)}
+            onNeverShow={() => {
+              try { window.localStorage.setItem("ezdeck_free_banner_off", "1"); } catch { /* ignore */ }
+              setFreeBanner(false);
+            }}
+          />
+        )}
+
         {/* Mobile header: brand + sign out */}
         <div className="mb-6 flex items-center justify-between lg:hidden">
           <Logo size="sm" />
@@ -235,10 +236,10 @@ export default function Dashboard({
 
         {/* ---------- Continue working ---------- */}
         {recentDeck && (
-          <ContinueCard deck={recentDeck} isPaid={paidIds.has(recentDeck.id)} />
+          <ContinueCard deck={recentDeck} />
         )}
 
-        {/* ---------- Decks header (search + filter) ---------- */}
+        {/* ---------- Decks header (search) ---------- */}
         {decks.length > 0 && (
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-t border-white/8 pt-6">
             <div className="text-[10px] font-semibold uppercase tracking-[0.26em] text-white/40">
@@ -246,7 +247,6 @@ export default function Dashboard({
             </div>
             <div className="flex items-center gap-2">
               <SearchInput value={query} onChange={setQuery} />
-              <FilterChips value={filter} onChange={setFilter} />
               <Link
                 href="/app/decks"
                 className="hidden text-[12px] text-white/55 transition hover:text-white/85 sm:inline"
@@ -265,14 +265,13 @@ export default function Dashboard({
         ) : decks.length === 0 ? (
           <EmptyState onCreate={onStartFromScratch} onTemplates={onStartFromTemplate} />
         ) : visibleDecks.length === 0 ? (
-          <NoMatchState onClear={() => { setQuery(""); setFilter("all"); }} />
+          <NoMatchState onClear={() => { setQuery(""); }} />
         ) : (
           <div className="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {visibleDecks.slice(0, 9).map((d) => (
               <DeckCard
                 key={d.id}
                 deck={d}
-                isPaid={paidIds.has(d.id)}
                 onAskDelete={() => setConfirmId(d.id)}
               />
             ))}
@@ -351,7 +350,115 @@ function NavItem({
   return <div className={className}>{inner}</div>;
 }
 
-function ContinueCard({ deck, isPaid }: { deck: DeckListItem; isPaid: boolean }) {
+/* --------------------------- Free popup --------------------------- */
+
+/**
+ * Eye-catching "EZdeck is now free" announcement shown as a centered modal
+ * popup over the dashboard. Close dismisses for the session (it returns on
+ * next load); the "Don't show again" checkbox persists the opt-out to
+ * localStorage. Intentionally not finalised yet, so the default is to keep
+ * reminding people.
+ */
+function FreeBanner({
+  onClose, onNeverShow,
+}: { onClose: () => void; onNeverShow: () => void }) {
+  const [never, setNever] = useState(false);
+  const dismiss = () => (never ? onNeverShow() : onClose());
+
+  // Esc to close + lock body scroll while open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") dismiss(); };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [never]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="EZdeck is now free"
+      onClick={(e) => { if (e.target === e.currentTarget) dismiss(); }}
+    >
+      <div className="fade-in relative w-full max-w-lg overflow-hidden rounded-2xl border border-cyan-300/25 p-[1px] shadow-2xl">
+        {/* Gradient frame */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-90"
+          style={{
+            background:
+              "linear-gradient(120deg, rgba(34,211,238,0.20), rgba(56,189,248,0.06) 35%, transparent 60%, rgba(167,139,250,0.18))",
+          }}
+        />
+        {/* Soft glow blobs */}
+        <div aria-hidden className="pointer-events-none absolute -left-12 -top-16 h-48 w-48 rounded-full bg-cyan-400/20 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-20 right-8 h-44 w-44 rounded-full bg-violet-400/15 blur-3xl" />
+
+        <div className="relative rounded-[15px] p-6 backdrop-blur-md sm:p-8" style={{ background: "var(--ezd-bg-elev)" }}>
+          {/* Corner close */}
+          <button
+            onClick={dismiss}
+            aria-label="Close announcement"
+            className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full transition hover:bg-white/10"
+            style={{ color: "var(--ezd-fg-muted)" }}
+          >
+            <X size={15} />
+          </button>
+
+          <div className="grid h-14 w-14 place-items-center rounded-2xl border border-cyan-300/30 bg-gradient-to-br from-cyan-400/25 to-sky-600/15 text-cyan-200 shadow-[0_0_30px_-6px_rgba(34,211,238,0.65)]">
+            <Gift size={26} />
+          </div>
+
+          <div className="mt-4 flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
+              <Sparkles size={10} /> News
+            </span>
+          </div>
+
+          <h2
+            className="mt-2.5 text-[24px] font-semibold tracking-tight sm:text-[28px]"
+            style={{ color: "var(--ezd-fg-strong)", fontFamily: '"Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif', letterSpacing: "-0.02em" }}
+          >
+            EZdeck is now 100% free
+          </h2>
+          <p className="mt-2.5 text-[13.5px] leading-relaxed" style={{ color: "var(--ezd-fg-muted)" }}>
+            No payments, no per-file fees, no catch. Generate, edit, present,
+            and download unlimited <span style={{ color: "var(--ezd-fg-strong)" }}>.pptx</span> and{" "}
+            <span style={{ color: "var(--ezd-fg-strong)" }}>.pdf</span> decks for free. All we ask
+            is one quick review before your first export.
+          </p>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <label className="inline-flex cursor-pointer select-none items-center gap-2 text-[12px] transition hover:opacity-80" style={{ color: "var(--ezd-fg-muted)" }}>
+              <input
+                type="checkbox"
+                checked={never}
+                onChange={(e) => setNever(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-white/25 bg-transparent accent-cyan-400"
+              />
+              Don&rsquo;t show this again
+            </label>
+            <button
+              onClick={dismiss}
+              className="inline-flex items-center justify-center gap-1.5 rounded-full px-6 py-2.5 text-[13px] font-semibold transition hover:brightness-110"
+              style={{ background: "var(--ezd-button-strong)", color: "var(--ezd-button-strong-fg)" }}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ContinueCard({ deck }: { deck: DeckListItem }) {
   return (
     <Link
       href={`/app?id=${deck.id}`}
@@ -372,14 +479,6 @@ function ContinueCard({ deck, isPaid }: { deck: DeckListItem; isPaid: boolean })
           <span>{deck.slides} slide{deck.slides === 1 ? "" : "s"}</span>
           <Sep />
           <span>{formatRelative(deck.updatedAt)}</span>
-          {isPaid && (
-            <>
-              <Sep />
-              <span className="inline-flex items-center gap-1 text-amber-200">
-                <Crown size={10} /> Unlocked
-              </span>
-            </>
-          )}
         </div>
       </div>
       <ArrowRight
@@ -481,58 +580,19 @@ function SearchInput({
   );
 }
 
-function FilterChips({
-  value, onChange,
-}: { value: Filter; onChange: (f: Filter) => void }) {
-  const opts: { id: Filter; label: string }[] = [
-    { id: "all",      label: "All" },
-    { id: "unlocked", label: "Unlocked" },
-    { id: "drafts",   label: "Drafts" },
-  ];
-  return (
-    <div className="hidden items-center rounded-full border border-white/10 bg-white/[0.025] p-0.5 text-[11px] sm:flex">
-      {opts.map((o) => {
-        const active = value === o.id;
-        return (
-          <button
-            key={o.id}
-            onClick={() => onChange(o.id)}
-            className={`rounded-full px-3 py-1 transition ${
-              active ? "bg-white text-[#03070F]" : "text-white/65 hover:text-white"
-            }`}
-          >
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 function DeckCard({
-  deck, isPaid, onAskDelete,
+  deck, onAskDelete,
 }: {
   deck: DeckListItem;
-  isPaid: boolean;
   onAskDelete: () => void;
 }) {
   return (
     <article
-      className={`group relative flex h-full flex-col rounded-2xl border p-4 transition ${
-        isPaid
-          ? "border-amber-300/40 bg-gradient-to-br from-amber-300/10 via-yellow-300/5 to-transparent hover:border-amber-300/60"
-          : "border-white/10 bg-white/[0.02] hover:border-white/30 hover:bg-white/[0.04]"
-      }`}
+      className="group relative flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-white/30 hover:bg-white/[0.04]"
     >
       <div className="mb-3">
         <DeckThumbnail item={deck} />
       </div>
-
-      {isPaid && (
-        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border border-amber-300/40 bg-amber-300/15 px-2 py-0.5 text-[10px] font-medium text-amber-200">
-          <Crown size={10} /> Unlocked
-        </span>
-      )}
 
       <div className="min-h-[64px]">
         <h3 className="line-clamp-2 text-sm font-semibold text-white">{deck.title}</h3>
@@ -642,13 +702,13 @@ function NoMatchState({ onClear }: { onClear: () => void }) {
       <Search size={20} className="mx-auto mb-3 text-white/30" />
       <h3 className="text-sm font-semibold text-white">No matches</h3>
       <p className="mt-1 text-xs text-white/55">
-        Nothing in your library matches the search and filter combo.
+        Nothing in your library matches that search.
       </p>
       <button
         onClick={onClear}
         className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-white/5 px-4 py-1.5 text-[12px] text-white/85 transition hover:bg-white/10"
       >
-        Clear filters
+        Clear search
       </button>
     </div>
   );

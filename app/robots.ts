@@ -21,7 +21,6 @@ export default function robots(): MetadataRoute.Robots {
           "/app/",
           "/auth",
           "/verify-email",
-          "/payment-success",
           "/preview/",
           "/reviews",
         ],

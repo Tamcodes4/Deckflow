@@ -25,7 +25,7 @@ export default function PrivacyPage() {
       <ul>
         <li><strong>Account information:</strong> name, email address, password (stored as a hashed credential by our authentication provider), and profile photo if you sign in with a third-party identity provider such as Google.</li>
         <li><strong>Content:</strong> text prompts, presentation content, theme settings, uploaded images, and any text you type into the AI editing chat. This content is processed to generate and edit your decks.</li>
-        <li><strong>Payment information:</strong> when you pay to download a deck, payment details (card number, UPI handle, etc.) are entered directly into Razorpay's interface and are not stored on our servers. We retain a transaction reference and the last four digits of the payment instrument for reconciliation.</li>
+        <li><strong>Reviews:</strong> if you submit a review, the name, role, rating, and text you provide. Reviews may be displayed publicly on the Service.</li>
         <li><strong>Communications:</strong> messages you send to {LEGAL.SUPPORT_EMAIL} or other support channels.</li>
       </ul>
 
@@ -46,7 +46,6 @@ export default function PrivacyPage() {
       <ul>
         <li>To create and authenticate your account and provide the Service.</li>
         <li>To process the prompts you send to our AI provider so we can return generated and edited slides.</li>
-        <li>To process per-deck payments and send transactional messages such as receipts and refund confirmations.</li>
         <li>To detect, investigate, and prevent fraud, abuse, and violations of our Terms.</li>
         <li>To improve the product through aggregated, de-identified analytics.</li>
         <li>To respond to your support requests.</li>
@@ -64,7 +63,7 @@ export default function PrivacyPage() {
       <h2>4. Sharing of Information</h2>
       <p>We do not sell your personal information. We share it only with:</p>
       <ul>
-        <li><strong>Service providers</strong> that help us operate the Service: hosting, database and authentication (Google Firebase), AI inference, email/transactional messaging, and payment processing (Razorpay). Each is contractually bound to handle your information only on our instructions.</li>
+        <li><strong>Service providers</strong> that help us operate the Service: hosting, database and authentication (Google Firebase), AI inference, and email/transactional messaging. Each is contractually bound to handle your information only on our instructions.</li>
         <li><strong>Authorities</strong> when required by valid legal process, or to protect the rights, property, or safety of {LEGAL.BUSINESS_NAME}, our users, or the public.</li>
         <li><strong>Successors</strong> in the event of a merger, acquisition, or sale of assets, in which case we will provide notice before personal information is transferred.</li>
       </ul>
@@ -75,8 +74,7 @@ export default function PrivacyPage() {
         and for up to 30 days after deletion to allow account recovery.
         Decks, uploads, and chat history are retained until you delete them
         or close your account. Aggregated analytics may be retained
-        indefinitely. Payment records are retained for the period required
-        by tax and accounting laws of {LEGAL.JURISDICTION_STATE}, India.
+        indefinitely.
       </p>
 
       <h2>6. Your Rights</h2>

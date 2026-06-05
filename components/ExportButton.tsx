@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Download, FileText, Presentation } from "lucide-react";
 import type { ExportFormat } from "./ExportFormatPicker";
 
@@ -10,19 +11,42 @@ export default function ExportButton({
   busy?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => setMounted(true), []);
+
+  // Anchor the (portaled, fixed) menu to the button so it can't get
+  // clipped by the toolbar's horizontal overflow.
+  const place = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (!r) return;
+    setPos({ top: r.bottom + 8, right: window.innerWidth - r.right });
+  };
+
+  useLayoutEffect(() => {
+    if (open) place();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (!btnRef.current?.contains(t) && !menuRef.current?.contains(t)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const onReflow = () => place();
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onReflow);
+    window.addEventListener("scroll", onReflow, true);
     return () => {
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onReflow);
+      window.removeEventListener("scroll", onReflow, true);
     };
   }, [open]);
 
@@ -32,8 +56,9 @@ export default function ExportButton({
   };
 
   return (
-    <div ref={wrapRef} className="relative">
+    <>
       <button
+        ref={btnRef}
         onClick={() => setOpen((v) => !v)}
         disabled={busy}
         className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
@@ -44,10 +69,12 @@ export default function ExportButton({
         {busy ? "Building…" : "Export"}
       </button>
 
-      {open && !busy && (
+      {mounted && open && !busy && createPortal(
         <div
+          ref={menuRef}
           role="menu"
-          className="fade-in absolute right-0 top-full z-30 mt-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-zinc-950/95 p-1 text-sm shadow-2xl backdrop-blur"
+          style={{ position: "fixed", top: pos.top, right: pos.right }}
+          className="fade-in z-[120] w-56 overflow-hidden rounded-xl border border-white/10 bg-zinc-950/95 p-1 text-sm shadow-2xl backdrop-blur"
         >
           <Row icon={<Presentation size={14} className="text-white/70" />} label=".pptx"
                sub="PowerPoint, Keynote, Slides"
@@ -55,9 +82,10 @@ export default function ExportButton({
           <Row icon={<FileText size={14} className="text-white/70" />} label=".pdf"
                sub="Locked layout for sharing"
                onClick={() => pick("pdf")} />
-        </div>
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   );
 }
 

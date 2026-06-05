@@ -92,9 +92,10 @@ export default function AboutPage() {
           </p>
           <p>
             No timed exports, no watermarks, no &ldquo;upgrade to remove
-            this.&rdquo; A flat ₹15 per deck only when you choose to
-            download. Every other part is free, including unlimited
-            generation, editing, and presenting.
+            this.&rdquo; EZdeck is completely free, including unlimited
+            generation, editing, presenting, and full .pptx and .pdf
+            download. All I ask is a quick honest review before your
+            first export.
           </p>
           <p>
             EZdeck is open source. The whole thing is published under my

@@ -19,8 +19,4 @@ export const LEGAL = {
   LAST_UPDATED: "2026-05-15",
   JURISDICTION_CITY: "Bengaluru",
   JURISDICTION_STATE: "Karnataka",
-  PRICE_PER_SLIDE_INR: 15,
-  PRICE_PER_DECK_INR: 15,
-  GST_INCLUSIVE: true,
-  CURRENCY: "INR",
 };

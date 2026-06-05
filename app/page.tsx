@@ -116,7 +116,6 @@ export default function LandingPage() {
             ].join(" ")}
           >
             <a href="#how" className="transition hover:text-white">How it works</a>
-            <a href="#pricing" className="transition hover:text-white">Pricing</a>
             <a href="#faq" className="transition hover:text-white">FAQ</a>
             <Link href="/about" className="transition hover:text-white">Dev&rsquo;s note</Link>
           </div>
@@ -260,7 +259,7 @@ export default function LandingPage() {
           <FeatureBlock
             icon={<Download size={14} />}
             title="Export, no lock-in"
-            body="A real .pptx that opens in PowerPoint, Keynote, or Google Slides. A high-res .pdf if you'd rather lock it. Pay once per file. No subscriptions."
+            body="A real .pptx that opens in PowerPoint, Keynote, or Google Slides. A high-res .pdf if you'd rather lock it. Free to download. No subscriptions."
           />
         </div>
       </section>
@@ -310,19 +309,6 @@ export default function LandingPage() {
             />
           </div>
         </div>
-      </section>
-
-      {/* ================== Pricing ================== */}
-      <section
-        id="pricing"
-        className="relative z-10 mx-auto max-w-2xl px-6 py-20 text-center"
-      >
-        <SectionLabel center kicker="Pricing" title="Free to draft. $0.16 to download." />
-        <p className="mx-auto mt-5 max-w-md text-[13.5px] leading-relaxed text-white/65">
-          Generate, edit, preview, and present every presentation for free.
-          When you're ready, pay a one-time $0.16 to unlock the .pptx and
-          .pdf for that file. No subscriptions, no slide-count tax.
-        </p>
       </section>
 
       {/* ================== FAQ ================== */}
@@ -987,7 +973,6 @@ function Footer({ dauToday }: { dauToday: number }) {
             items={[
               { label: "How it works", href: "#how" },
               { label: "Examples", href: "#examples" },
-              { label: "Pricing", href: "#pricing" },
               { label: "Open the editor", href: "/app" },
             ]}
           />

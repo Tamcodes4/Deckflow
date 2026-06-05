@@ -4,7 +4,7 @@ import type { Deck, Slide, UploadedImage } from "@/lib/types";
 import type { Theme } from "@/lib/themes";
 import { PRESET_THEMES } from "@/lib/themes";
 import {
-  BarChart3, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, LayoutGrid, Link as LinkIcon, List, Loader2, Play, RotateCcw, Shapes, Smile, Undo2,
+  BarChart3, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, LayoutGrid, Link as LinkIcon, List, Loader2, Play, RotateCcw, Shapes, Smile, Star, Undo2, X,
 } from "lucide-react";
 import SlideCanvas from "./SlideCanvas";
 import DesignerPanel from "./DesignerPanel";
@@ -15,12 +15,12 @@ import OutlineEditor from "./OutlineEditor";
 import HiddenSlidesRenderer, { type HiddenSlidesHandle } from "./HiddenSlidesRenderer";
 import ExportButton from "./ExportButton";
 import DecorationDrawer from "./DecorationDrawer";
-import PaymentDialog from "./PaymentDialog";
 import { exportSlidesToPdf } from "@/lib/pdfExport";
 import { trackEvent } from "@/lib/stats";
 import type { ExportFormat } from "./ExportFormatPicker";
 import { getDecoration } from "@/lib/decorations";
-import { saveDeck, publishDeck, unpublishDeck, loadDeckPaid } from "@/lib/decks";
+import { saveDeck, publishDeck, unpublishDeck } from "@/lib/decks";
+import { submitReview, REVIEW_LIMITS } from "@/lib/reviews";
 import { loadShareAnalytics, formatDwell, type ShareAnalytics } from "@/lib/analytics";
 import { stripHtml } from "@/lib/richText";
 import type { AppUser } from "@/lib/auth";
@@ -49,8 +49,11 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [themeTransferOpen, setThemeTransferOpen] = useState(false);
-  const [paymentOpen, setPaymentOpen] = useState(false);
-  const [paid, setPaid] = useState(false);
+  // Mandatory one-time review before exporting (replaces the old payment
+  // gate — exports are free now). Persisted per-browser so we only ask once.
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewGiven, setReviewGiven] = useState(false);
+  const [pendingFormat, setPendingFormat] = useState<ExportFormat | null>(null);
   // Undo: keep up to N recent deck snapshots so we can roll back accidental
   // edits, AI rewrites that went wrong, or auto-saves that wiped something.
   // We store full Deck objects (small, JSON-friendly) and skip pushing on
@@ -101,23 +104,12 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-  // Hydrate the paid flag any time the deck/user changes. Polls again
-  // when the user comes back to the tab so a payment that just landed
-  // unlocks without a manual refresh.
+  // Has the user already left a review? We only gate the first export.
   useEffect(() => {
-    if (!user || !deckId) { setPaid(false); return; }
-    let cancelled = false;
-    const refresh = async () => {
-      try {
-        const p = await loadDeckPaid(user.uid, deckId);
-        if (!cancelled) setPaid(!!p?.paidAt);
-      } catch { /* ignore */ }
-    };
-    refresh();
-    const onFocus = () => refresh();
-    window.addEventListener("focus", onFocus);
-    return () => { cancelled = true; window.removeEventListener("focus", onFocus); };
-  }, [user, deckId]);
+    try {
+      if (window.localStorage.getItem("ezdeck_reviewed") === "1") setReviewGiven(true);
+    } catch { /* ignore */ }
+  }, []);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hiddenRef = useRef<HiddenSlidesHandle>(null);
 
@@ -267,12 +259,18 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
   };
 
   const onExport = async (format: ExportFormat) => {
-    // Both formats are paid. Gate behind the payment dialog if the deck
-    // hasn't been unlocked yet.
-    if (!paid) {
-      setPaymentOpen(true);
+    // Exports are free, but we ask for a one-time review before the first
+    // export of this session. Once submitted (or already given), exports
+    // go straight through.
+    if (!reviewGiven) {
+      setPendingFormat(format);
+      setReviewOpen(true);
       return;
     }
+    await runExport(format);
+  };
+
+  const runExport = async (format: ExportFormat) => {
     setDownloading(true);
     try {
       if (format === "pptx") await downloadPptx();
@@ -559,12 +557,18 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
         />
       )}
 
-      {/* Razorpay payment dialog (only shown for unpaid PPTX exports) */}
-      <PaymentDialog
-        open={paymentOpen}
-        deck={deck}
-        deckId={deckId || null}
-        onClose={() => setPaymentOpen(false)}
+      {/* Mandatory one-time review before the first export (free). */}
+      <ReviewGate
+        open={reviewOpen}
+        onClose={() => { setReviewOpen(false); setPendingFormat(null); }}
+        onDone={async () => {
+          try { window.localStorage.setItem("ezdeck_reviewed", "1"); } catch { /* ignore */ }
+          setReviewGiven(true);
+          setReviewOpen(false);
+          const fmt = pendingFormat;
+          setPendingFormat(null);
+          if (fmt) await runExport(fmt);
+        }}
       />
     </div>
   );
@@ -866,4 +870,131 @@ function triggerDownload(blob: Blob, filename: string) {
 
 function slugify(s: string) {
   return (s || "deck").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+}
+
+/* ----------------------- Review gate (pre-export) ----------------------- */
+
+/**
+ * Shown once before a user's first export. EZdeck is free — instead of
+ * payment, we ask for a quick honest review. On submit we record it (and
+ * remember in localStorage so we never block again) and let the export run.
+ */
+function ReviewGate({
+  open, onClose, onDone,
+}: { open: boolean; onClose: () => void; onDone: () => void }) {
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("");
+  const [rating, setRating] = useState(5);
+  const [hover, setHover] = useState(0);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!open) return null;
+  const shown = hover || rating;
+
+  const submit = async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      await submitReview({ name, role, rating, text });
+      onDone();
+    } catch (e: any) {
+      setError(e?.message || "Couldn't submit. Try again.");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[210] flex items-center justify-center bg-black/80 p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-2xl border"
+        style={{ background: "var(--ezd-bg-elev)", borderColor: "var(--ezd-divider)" }}
+      >
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--ezd-divider)" }}>
+          <span className="inline-flex items-center gap-2 text-[13px] font-medium" style={{ color: "var(--ezd-fg-strong)" }}>
+            <Star size={13} /> One quick review, then download
+          </span>
+          <button onClick={onClose} disabled={busy} className="grid h-7 w-7 place-items-center rounded-full transition hover:bg-white/10" style={{ color: "var(--ezd-fg-muted)" }}>
+            <X size={14} />
+          </button>
+        </div>
+
+        <div className="px-5 py-5">
+          <p className="mb-4 text-[13px] leading-relaxed" style={{ color: "var(--ezd-fg-muted)" }}>
+            EZdeck is completely free. All we ask is a quick, honest review
+            before your first download — the good ones get featured on the
+            homepage.
+          </p>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value.slice(0, REVIEW_LIMITS.name))}
+              placeholder="Your name"
+              className="w-full rounded-xl border border-white/12 bg-black/40 px-3 py-2.5 text-sm outline-none focus:border-white/30"
+            />
+            <input
+              value={role}
+              onChange={(e) => setRole(e.target.value.slice(0, REVIEW_LIMITS.role))}
+              placeholder="What you do"
+              className="w-full rounded-xl border border-white/12 bg-black/40 px-3 py-2.5 text-sm outline-none focus:border-white/30"
+            />
+          </div>
+
+          <div className="mt-3 flex items-center gap-2" onMouseLeave={() => setHover(0)}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onMouseEnter={() => setHover(n)}
+                onClick={() => setRating(n)}
+                aria-label={`${n} stars`}
+                className="p-0.5 transition-transform hover:scale-110"
+              >
+                <Star
+                  size={24}
+                  style={{
+                    fill: n <= shown ? "var(--ezd-fg-strong)" : "transparent",
+                    color: n <= shown ? "var(--ezd-fg-strong)" : "var(--ezd-divider)",
+                  }}
+                />
+              </button>
+            ))}
+            <span className="ml-1 text-[12.5px] tabular-nums text-white/55">{shown} / 5</span>
+          </div>
+
+          <div className="relative mt-3">
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value.slice(0, REVIEW_LIMITS.text))}
+              placeholder="A line or two — the UI, speed, workflow, whatever stood out."
+              rows={3}
+              className="w-full resize-none rounded-xl border border-white/12 bg-black/40 p-3 pb-7 text-sm leading-relaxed outline-none placeholder:text-white/30 focus:border-white/30"
+            />
+            <span className="pointer-events-none absolute bottom-2 right-3 text-[11px] tabular-nums text-white/35">
+              {text.length}/{REVIEW_LIMITS.text}
+            </span>
+          </div>
+
+          {error && <p className="mt-2 text-[12.5px] text-red-300">{error}</p>}
+
+          <button
+            onClick={submit}
+            disabled={busy}
+            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ background: "var(--ezd-button-strong)", color: "var(--ezd-button-strong-fg)" }}
+          >
+            {busy ? <Loader2 size={15} className="animate-spin" /> : <Star size={15} />}
+            {busy ? "Submitting…" : "Submit & download"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

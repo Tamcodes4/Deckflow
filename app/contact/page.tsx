@@ -15,16 +15,15 @@ export default function ContactPage() {
 
       <h2>Support</h2>
       <p>
-        For account, billing, refund, or product issues, write to{" "}
+        For account or product issues, write to{" "}
         <a href={`mailto:${LEGAL.SUPPORT_EMAIL}`}>{LEGAL.SUPPORT_EMAIL}</a>.
-        Please include your registered email and (where applicable) the
-        Razorpay transaction ID so we can locate your order quickly.
+        Please include your registered email so we can help you quickly.
       </p>
 
       <h2>Phone</h2>
       <p>
-        {LEGAL.SUPPORT_PHONE} (Mon–Fri, 10:00–18:00 IST). For payment and
-        refund matters, email is preferred so we can attach references.
+        {LEGAL.SUPPORT_PHONE} (Mon–Fri, 10:00–18:00 IST). For detailed
+        issues, email is preferred so we can attach references.
       </p>
 
       <h2>Postal Address</h2>
