@@ -672,9 +672,9 @@ function drawAnnotations(s: PptxGenJS.Slide, theme: Theme, slide: Slide) {
 function mix(a: string, b: string, t: number): string {
   // simple hex blend
   const pa = parseHex(a), pb = parseHex(b);
-  const r = Math.round(pa.r + (pb.r - pa.r) * (1 - t));
-  const g = Math.round(pa.g + (pb.g - pa.g) * (1 - t));
-  const bl = Math.round(pa.b + (pb.b - pa.b) * (1 - t));
+  const r = Math.round(pa.r + (pb.r - pa.r) * t);
+  const g = Math.round(pa.g + (pb.g - pa.g) * t);
+  const bl = Math.round(pa.b + (pb.b - pa.b) * t);
   return `#${[r, g, bl].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 function parseHex(s: string) {
