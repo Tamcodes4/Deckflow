@@ -28,8 +28,30 @@ export default function RefundPage() {
         billing to cancel. You can stop using the Service, or delete your
         decks and account, at any time without any cost or penalty.
       </p>
+      <h2>3. Account and Data Deletion</h2>
+      <p>
+        You may request deletion of your account and associated decks at any time.
+        To do so, contact us at{" "}
+        <a href={`mailto:${LEGAL.SUPPORT_EMAIL}`}>
+          {LEGAL.SUPPORT_EMAIL}
+        </a>{" "}
+        from the email address associated with your account.
+      </p>
 
-      <h2>3. If You See a Charge</h2>
+      <p>
+        Upon verification of your request, we will delete your account data and
+        presentation content from our active systems, subject to any legal,
+        security, or operational retention requirements described in our Privacy
+        Policy.
+      </p>
+
+      <p>
+        If certain records must be retained for compliance, security, or fraud
+        prevention purposes, they will be retained only for the minimum period
+        required and handled in accordance with applicable laws.
+      </p>
+
+      <h2>4. If You See a Charge</h2>
       <p>
         We have no payment system, so EZdeck cannot have charged you. If you
         notice a charge that references EZdeck, it is not from us — please
@@ -38,7 +60,7 @@ export default function RefundPage() {
         we can help you look into it.
       </p>
 
-      <h2>4. Contact</h2>
+      <h2>5. Contact</h2>
       <p>
         {LEGAL.BUSINESS_NAME} (operated by {LEGAL.PROPRIETOR_NAME}) <br />
         {LEGAL.BUSINESS_ADDRESS} <br />
