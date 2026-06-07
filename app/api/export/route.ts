@@ -43,11 +43,15 @@ function offset(slide: Slide, id: ElementId): ElementOffset {
   return slide.elementOffsets?.[id] || { dx: 0, dy: 0 };
 }
 
-function addAccentBar(s: PptxGenJS.Slide, theme: Theme) {
+function addAccentBar(s: PptxGenJS.Slide, theme: Theme, slide?: Slide) {
+  const ov = slide?.deco?.accentBar;
+  if (ov?.hidden) return;
+  const color = ov?.color || theme.accent;
+  const scale = ov?.scale ?? 1;
   s.addShape("rect", {
-    x: 0, y: 0, w: 0.18, h: H,
-    fill: { color: hex(theme.accent) },
-    line: { color: hex(theme.accent), width: 0 },
+    x: (ov?.dx || 0), y: (ov?.dy || 0), w: 0.18 * scale, h: H,
+    fill: { color: hex(color) },
+    line: { color: hex(color), width: 0 },
   });
 }
 
@@ -67,10 +71,15 @@ function addFooter(
 function addContentTitle(s: PptxGenJS.Slide, slide: Slide, theme: Theme) {
   if (!isHidden(slide, "title")) {
     const o = offset(slide, "title");
-    s.addShape("rect", {
-      x: PAD, y: 0.85, w: 0.6, h: 0.06,
-      fill: { color: hex(theme.accent) }, line: { color: hex(theme.accent), width: 0 },
-    });
+    const tab = slide.deco?.titleTab;
+    if (!tab?.hidden) {
+      const tabColor = tab?.color || theme.accent;
+      const tabScale = tab?.scale ?? 1;
+      s.addShape("rect", {
+        x: PAD + (tab?.dx || 0), y: 0.85 + (tab?.dy || 0), w: 0.6 * tabScale, h: 0.06,
+        fill: { color: hex(tabColor) }, line: { color: hex(tabColor), width: 0 },
+      });
+    }
     s.addText(slide.title, {
       x: PAD + o.dx, y: 1.0 + o.dy, w: W - 2 * PAD, h: 0.9,
       fontSize: titleSize(slide.title, slide.layout, slide), bold: true,
@@ -335,7 +344,7 @@ async function renderBullets(
   const s = pptx.addSlide();
   s.background = { color: hex(theme.bg) };
   applyGraphicBg(s, theme, deck, slide);
-  addAccentBar(s, theme);
+  addAccentBar(s, theme, slide);
   addContentTitle(s, slide, theme);
 
   if (!isHidden(slide, "bullets")) {
@@ -363,7 +372,7 @@ async function renderTwoColumn(
   const s = pptx.addSlide();
   s.background = { color: hex(theme.bg) };
   applyGraphicBg(s, theme, deck, slide);
-  addAccentBar(s, theme);
+  addAccentBar(s, theme, slide);
   addContentTitle(s, slide, theme);
 
   if (!isHidden(slide, "bullets")) {
@@ -416,7 +425,7 @@ async function renderTable(
   const s = pptx.addSlide();
   s.background = { color: hex(theme.bg) };
   applyGraphicBg(s, theme, deck, slide);
-  addAccentBar(s, theme);
+  addAccentBar(s, theme, slide);
   addContentTitle(s, slide, theme);
 
   if (!isHidden(slide, "table") && slide.table) {
@@ -481,7 +490,7 @@ async function renderChart(
   const s = pptx.addSlide();
   s.background = { color: hex(theme.bg) };
   applyGraphicBg(s, theme, deck, slide);
-  addAccentBar(s, theme);
+  addAccentBar(s, theme, slide);
   addContentTitle(s, slide, theme);
 
   if (!isHidden(slide, "chart") && slide.chart) {
@@ -578,7 +587,7 @@ async function renderReferences(
   const s = pptx.addSlide();
   s.background = { color: hex(theme.bg) };
   applyGraphicBg(s, theme, deck, slide);
-  addAccentBar(s, theme);
+  addAccentBar(s, theme, slide);
   addContentTitle(s, { ...slide, title: slide.title || "References" }, theme);
 
   const refs: Reference[] = deck.references || [];
@@ -607,7 +616,7 @@ async function renderClosing(
   const s = pptx.addSlide();
   s.background = { color: hex(theme.bg) };
   applyGraphicBg(s, theme, deck, slide);
-  addAccentBar(s, theme);
+  addAccentBar(s, theme, slide);
 
   if (!isHidden(slide, "title")) {
     const o = offset(slide, "title");
@@ -841,4 +850,5 @@ async function drawUploadedImages(s: PptxGenJS.Slide, slide: Slide, theme: Theme
     s.addImage({ data, x: img.x, y: img.y, w: img.w, h: img.h });
   }
 }
+
 
