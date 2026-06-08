@@ -3,7 +3,28 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Deck, Slide } from "@/lib/types";
 import type { Theme } from "@/lib/themes";
 import SlideCanvas from "./SlideCanvas";
-import { ChevronLeft, ChevronRight, X, Pause } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Pause, NotebookText, Timer, RotateCcw } from "lucide-react";
+
+/** Rough spoken pace: words per minute used to estimate per-slide talk time. */
+const WORDS_PER_MIN = 130;
+
+function plain(s?: string): string {
+  return (s || "").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+}
+function wordCount(s?: string): number {
+  const t = plain(s);
+  return t ? t.split(/\s+/).length : 0;
+}
+function fmtClock(totalSec: number): string {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+/** Estimated seconds to speak a slide from its notes (falls back to body text). */
+function slideSeconds(s: Slide): number {
+  const words = wordCount(s.notes) || wordCount(s.title) + wordCount(s.subtitle) + (s.bullets || []).reduce((a, b) => a + wordCount(b), 0);
+  return Math.max(15, Math.round((words / WORDS_PER_MIN) * 60));
+}
 
 /**
  * Full-screen slideshow.
@@ -34,6 +55,9 @@ export default function Presenter({
   const [blank, setBlank] = useState<"none" | "black" | "white">("none");
   const [showControls, setShowControls] = useState(true);
   const [jumpBuffer, setJumpBuffer] = useState("");
+  const [showNotes, setShowNotes] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [timerRunning, setTimerRunning] = useState(true);
   const idleTimer = useRef<number | null>(null);
 
   const enriched = useMemo(() => {
@@ -99,6 +123,19 @@ export default function Presenter({
   };
   useEffect(() => { bumpControls(); return () => { if (idleTimer.current) window.clearTimeout(idleTimer.current); }; }, []);
 
+  // Talk timer: ticks every second while running. Drives the elapsed clock
+  // shown in the notes pane so the presenter can pace themselves.
+  useEffect(() => {
+    if (!timerRunning) return;
+    const id = window.setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [timerRunning]);
+
+  // Per-slide and whole-deck spoken-time estimates from the notes/text.
+  const slideSecs = useMemo(() => enriched.map((s) => slideSeconds(s)), [enriched]);
+  const totalSecs = useMemo(() => slideSecs.reduce((a, b) => a + b, 0), [slideSecs]);
+  const hasAnyNotes = useMemo(() => enriched.some((s) => plain(s.notes).length > 0), [enriched]);
+
   // Keyboard.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -150,6 +187,12 @@ export default function Presenter({
           setBlank((s) => (s === "black" ? "none" : "black")); break;
         case "w": case "W":
           setBlank((s) => (s === "white" ? "none" : "white")); break;
+        case "s": case "S":
+          e.preventDefault(); setShowNotes((v) => !v); break;
+        case "t": case "T":
+          e.preventDefault(); setTimerRunning((v) => !v); break;
+        case "r": case "R":
+          e.preventDefault(); setElapsed(0); break;
       }
     };
     window.addEventListener("keydown", onKey);
@@ -279,6 +322,13 @@ export default function Presenter({
           <button onClick={(e) => { e.stopPropagation(); setBlank((s) => s === "black" ? "none" : "black"); }} style={chromeButton} title="Black (B)">
             <Pause size={14} /> B
           </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowNotes((v) => !v); }}
+            style={{ ...chromeButton, background: showNotes ? "rgba(255,255,255,0.22)" : chromeButton.background }}
+            title="Speaker notes (S)"
+          >
+            <NotebookText size={14} /> Notes
+          </button>
         </div>
       </div>
 
@@ -295,6 +345,24 @@ export default function Presenter({
         }}>
           → {jumpBuffer} <span style={{ fontSize: 14, opacity: 0.6 }}>(Enter)</span>
         </div>
+      )}
+
+      {/* Speaker notes / teleprompter panel */}
+      {showNotes && blank === "none" && (
+        <NotesPanel
+          slide={enriched[active]}
+          nextSlide={active < total - 1 ? enriched[active + 1] : null}
+          index={active}
+          total={total}
+          slideEstimate={slideSecs[active]}
+          totalEstimate={totalSecs}
+          elapsed={elapsed}
+          timerRunning={timerRunning}
+          hasAnyNotes={hasAnyNotes}
+          onToggleTimer={() => setTimerRunning((v) => !v)}
+          onResetTimer={() => setElapsed(0)}
+          onClose={() => setShowNotes(false)}
+        />
       )}
 
       {/* Hint shown briefly on first frame */}
@@ -390,7 +458,142 @@ function FirstHint() {
       fontSize: 11, opacity: 0.9,
       animation: "presenter-fade 200ms ease",
     }}>
-      ← / → to navigate · B = blank · Esc to exit
+      ← / → to navigate · S = notes · B = blank · Esc to exit
     </div>
   );
 }
+
+function NotesPanel({
+  slide, nextSlide, index, total, slideEstimate, totalEstimate,
+  elapsed, timerRunning, hasAnyNotes, onToggleTimer, onResetTimer, onClose,
+}: {
+  slide: Slide;
+  nextSlide: Slide | null;
+  index: number;
+  total: number;
+  slideEstimate: number;
+  totalEstimate: number;
+  elapsed: number;
+  timerRunning: boolean;
+  hasAnyNotes: boolean;
+  onToggleTimer: () => void;
+  onResetTimer: () => void;
+  onClose: () => void;
+}) {
+  const script = plain(slide?.notes);
+  const overTotal = elapsed > totalEstimate;
+  return (
+    <div
+      data-presenter-chrome
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        position: "absolute", top: 0, right: 0, bottom: 0,
+        width: "min(420px, 34vw)",
+        background: "rgba(14,14,16,0.92)",
+        backdropFilter: "blur(14px)",
+        borderLeft: "1px solid rgba(255,255,255,0.1)",
+        color: "#fff",
+        display: "flex", flexDirection: "column",
+        fontFamily: "ui-sans-serif, system-ui, sans-serif",
+        animation: "presenter-fade 200ms ease",
+        zIndex: 5,
+      }}
+    >
+      {/* Header: timer + controls */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Timer size={16} style={{ opacity: 0.7 }} />
+          <span style={{
+            fontSize: 22, fontVariantNumeric: "tabular-nums", fontWeight: 700,
+            color: overTotal ? "#fca5a5" : "#fff",
+          }}>
+            {fmtClock(elapsed)}
+          </span>
+          <span style={{ fontSize: 12, opacity: 0.5 }}>/ ~{fmtClock(totalEstimate)}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <button onClick={onToggleTimer} style={miniBtn} title="Play/pause timer (T)">
+            {timerRunning ? "Pause" : "Resume"}
+          </button>
+          <button onClick={onResetTimer} style={miniBtn} title="Reset timer (R)">
+            <RotateCcw size={13} />
+          </button>
+          <button onClick={onClose} style={miniBtn} title="Hide notes (S)">
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Current slide script */}
+      <div style={{ padding: "16px", overflowY: "auto", flex: 1 }}>
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          marginBottom: 10,
+        }}>
+          <span style={{ fontSize: 11, letterSpacing: 1, textTransform: "uppercase", opacity: 0.55 }}>
+            Slide {index + 1} of {total}
+          </span>
+          <span style={{ fontSize: 11, opacity: 0.55 }}>~{fmtClock(slideEstimate)} to speak</span>
+        </div>
+
+        {slide?.noteSegments && slide.noteSegments.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {slide.noteSegments.map((seg, j) => (
+              <div key={j}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>{seg.speaker}</span>
+                <p style={{ fontSize: 17, lineHeight: 1.6, color: "rgba(255,255,255,0.92)", margin: "4px 0 0" }}>
+                  {seg.text}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : script ? (
+          <p style={{ fontSize: 18, lineHeight: 1.65, color: "rgba(255,255,255,0.92)", margin: 0 }}>
+            {script}
+          </p>
+        ) : (
+          <p style={{ fontSize: 14, lineHeight: 1.6, color: "rgba(255,255,255,0.5)", margin: 0 }}>
+            {hasAnyNotes
+              ? "No notes for this slide."
+              : "No speaker notes yet. Close the presenter and use \u201CGenerate notes\u201D in the editor to create a spoken script for every slide."}
+          </p>
+        )}
+
+        {/* Next slide peek */}
+        {nextSlide && (
+          <div style={{
+            marginTop: 24, paddingTop: 16,
+            borderTop: "1px solid rgba(255,255,255,0.08)",
+          }}>
+            <span style={{ fontSize: 11, letterSpacing: 1, textTransform: "uppercase", opacity: 0.45 }}>
+              Up next
+            </span>
+            <p style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.8)", margin: "6px 0 0" }}>
+              {plain(nextSlide.title) || `Slide ${index + 2}`}
+            </p>
+            {plain(nextSlide.subtitle) && (
+              <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.5)", margin: "2px 0 0" }}>
+                {plain(nextSlide.subtitle)}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const miniBtn: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 4,
+  padding: "5px 9px",
+  background: "rgba(255,255,255,0.08)",
+  border: "1px solid rgba(255,255,255,0.1)",
+  borderRadius: 8,
+  color: "#fff",
+  cursor: "pointer",
+  fontSize: 12,
+  fontFamily: "ui-sans-serif, system-ui, sans-serif",
+};

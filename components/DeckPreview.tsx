@@ -4,8 +4,9 @@ import type { Deck, Slide, UploadedImage, TextBox } from "@/lib/types";
 import type { Theme } from "@/lib/themes";
 import { PRESET_THEMES } from "@/lib/themes";
 import {
-  BarChart3, ChevronDown, ChevronLeft, ChevronRight, Eye, Grid3x3, Image as ImageIcon, LayoutGrid, Link as LinkIcon, List, Loader2, Play, RotateCcw, Smile, Star, Undo2, X,
+  BarChart3, ChevronDown, ChevronLeft, ChevronRight, Eye, Grid3x3, Image as ImageIcon, LayoutGrid, Link as LinkIcon, List, Loader2, NotebookText, Play, RotateCcw, Smile, Star, Undo2, X,
   Type, Bold, Italic, Underline as UnderlineIcon, Trash2, AlignLeft, AlignCenter, AlignRight, PanelRightOpen,
+  Users, Plus, Minus,
 } from "lucide-react";
 import SlideCanvas, { type CanvasSelection } from "./SlideCanvas";
 import DesignerPanel from "./DesignerPanel";
@@ -27,6 +28,7 @@ import { stripHtml, applyWholeStyle, readWholeStyle } from "@/lib/richText";
 import { SLIDE_PATTERNS, PATTERN_OPACITY, patternToDataUri } from "@/lib/patterns";
 import { FONT_PRESETS, resolveFontFamily } from "@/lib/fonts";
 import type { AppUser } from "@/lib/auth";
+import { getIdToken } from "@/lib/auth";
 
 type Props = {
   deck: Deck;
@@ -43,6 +45,10 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
   const [viewMode, setViewMode] = useState<"slides" | "outline">("slides");
   const [downloading, setDownloading] = useState(false);
   const [presenting, setPresenting] = useState(false);
+  const [notesState, setNotesState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [notesMenuOpen, setNotesMenuOpen] = useState(false);
+  const [customNotesOpen, setCustomNotesOpen] = useState(false);
+  const [notesViewOpen, setNotesViewOpen] = useState(false);
   const [patternOpen, setPatternOpen] = useState(false);
   const [iconOpen, setIconOpen] = useState(false);
   // Right "insert" sidebar: collapsed by default, opens to Add text / image.
@@ -259,6 +265,62 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
 
   /* ------------------------------- Export -------------------------------- */
 
+  const hasNotes = useMemo(
+    () => deck.slides.some((s) => (s.notes || "").trim().length > 0),
+    [deck.slides],
+  );
+
+  // Generate spoken speaker notes for every slide via the AI, then fold each
+  // script into the matching slide's `notes`. Powers the presenter
+  // teleprompter and the PPTX speaker-notes export. When `speakers` is passed
+  // (group presentations) the script is divided per presenter and stored as
+  // `noteSegments` for the Show-notes view.
+  const generateNotes = async (speakers?: string[], setting?: string) => {
+    if (notesState === "loading") return;
+    setNotesState("loading");
+    try {
+      const token = await getIdToken();
+      const res = await fetch("/api/speaker-notes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          deck,
+          audience: deck.audience,
+          tone: deck.tone,
+          ...(speakers && speakers.length >= 2 ? { speakers, setting } : {}),
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = (await res.json()) as {
+        notes?: { index: number; script: string; segments?: { speaker: string; text: string }[] }[];
+      };
+      const byIndex = new Map<number, { script: string; segments?: { speaker: string; text: string }[] }>();
+      for (const n of data.notes || []) {
+        if (typeof n?.index === "number" && typeof n?.script === "string") {
+          byIndex.set(n.index, { script: n.script, segments: n.segments });
+        }
+      }
+      setDeck({
+        ...deck,
+        slides: deck.slides.map((s, i) => {
+          const got = byIndex.get(i);
+          if (!got || !got.script) return s;
+          return { ...s, notes: got.script, noteSegments: got.segments };
+        }),
+      });
+      setNotesState("done");
+      setNotesViewOpen(true);
+      window.setTimeout(() => setNotesState("idle"), 2500);
+    } catch (e) {
+      console.error("[generateNotes] failed:", e);
+      setNotesState("error");
+      window.setTimeout(() => setNotesState("idle"), 3000);
+    }
+  };
+
   const downloadPptx = async () => {
     const res = await fetch("/api/export", {
       method: "POST",
@@ -345,6 +407,26 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
     <div className="fade-in mx-auto w-full max-w-[1400px]">
       {presenting && (
         <Presenter deck={deck} theme={theme} startIndex={active} onClose={() => setPresenting(false)} />
+      )}
+      {notesMenuOpen && (
+        <NotesModeDialog
+          onClose={() => setNotesMenuOpen(false)}
+          onQuick={() => { setNotesMenuOpen(false); generateNotes(); }}
+          onCustom={() => { setNotesMenuOpen(false); setCustomNotesOpen(true); }}
+        />
+      )}
+      {customNotesOpen && (
+        <CustomNotesDialog
+          onClose={() => setCustomNotesOpen(false)}
+          onGenerate={(speakers, setting) => { setCustomNotesOpen(false); generateNotes(speakers, setting); }}
+        />
+      )}
+      {notesViewOpen && (
+        <NotesViewModal
+          deck={deck}
+          onClose={() => setNotesViewOpen(false)}
+          onRegenerate={() => { setNotesViewOpen(false); setNotesMenuOpen(true); }}
+        />
       )}
       {renderForPdf && <HiddenSlidesRenderer ref={hiddenRef} deck={deck} theme={theme} />}
       <DecorationDrawer
@@ -464,6 +546,26 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
               <LinkIcon size={14} /> {sharing ? "Sharing…" : "Share"}
             </button>
           )}
+          <div className="relative">
+            <button
+              onClick={() => {
+                if (hasNotes) { setNotesViewOpen(true); return; }
+                setNotesMenuOpen(true);
+              }}
+              disabled={notesState === "loading"}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
+              title={hasNotes ? "View speaker notes" : "Generate spoken speaker notes for every slide"}
+            >
+              {notesState === "loading"
+                ? <Loader2 size={14} className="animate-spin" />
+                : <NotebookText size={14} />}
+              {notesState === "loading" ? "Writing notes…"
+                : notesState === "error" ? "Try again"
+                : hasNotes ? "Show notes"
+                : "Generate notes"}
+              {!hasNotes && notesState !== "loading" && <ChevronDown size={13} className="opacity-60" />}
+            </button>
+          </div>
           <button
             onClick={() => setPresenting(true)}
             className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 hover:bg-emerald-400/20"
@@ -1784,4 +1886,256 @@ function elementFieldValue(slide: Slide | undefined, id: string): string {
   const field = elementFieldName(id);
   if (!field) return "";
   return ((slide as any)[field] as string) || "";
+}
+
+/* ----------------------- Speaker notes: mode picker ----------------------- */
+
+/** First step after clicking Generate notes: choose quick (one presenter) or
+ *  split-by-speaker. Rendered as a centered modal so it can't be clipped by
+ *  the scrollable toolbar. */
+function NotesModeDialog({
+  onClose, onQuick, onCustom,
+}: {
+  onClose: () => void;
+  onQuick: () => void;
+  onCustom: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[90] grid place-items-center bg-black/60 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl border border-white/10 p-6 shadow-2xl"
+        style={{ background: "var(--ezd-bg-elev)", color: "var(--ezd-fg)", borderColor: "var(--ezd-hairline)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <NotebookText size={18} className="text-emerald-300" />
+          <h2 className="text-lg font-semibold">Generate speaker notes</h2>
+        </div>
+        <p className="mb-5 text-[13px] leading-relaxed text-white/55">
+          Write a spoken script for every slide. Choose how you're presenting.
+        </p>
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={onQuick}
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left hover:bg-white/10"
+          >
+            <div className="text-sm font-medium">Quick notes</div>
+            <div className="text-[12px] text-white/45">One presenter, whole deck</div>
+          </button>
+          <button
+            onClick={onCustom}
+            className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-left hover:bg-emerald-400/20"
+          >
+            <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-100">
+              <Users size={14} /> Split by speaker
+            </div>
+            <div className="text-[12px] text-emerald-200/50">Divide the script across a group of presenters</div>
+          </button>
+        </div>
+        <div className="mt-5 flex justify-end">
+          <button
+            onClick={onClose}
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------- Speaker notes: custom dialog ----------------------- */
+/**
+ * Collects who's presenting before generating split-by-speaker notes:
+ * the setting/occasion and an ordered list of presenter names. The AI
+ * divides each slide's spoken script across these people.
+ */
+function CustomNotesDialog({
+  onClose, onGenerate,
+}: {
+  onClose: () => void;
+  onGenerate: (speakers: string[], setting: string) => void;
+}) {
+  const [setting, setSetting] = useState("");
+  const [names, setNames] = useState<string[]>(["", ""]);
+
+  const setName = (i: number, v: string) =>
+    setNames((arr) => arr.map((n, j) => (j === i ? v : n)));
+  const addName = () => setNames((arr) => (arr.length >= 8 ? arr : [...arr, ""]));
+  const removeName = (i: number) =>
+    setNames((arr) => (arr.length <= 2 ? arr : arr.filter((_, j) => j !== i)));
+
+  const cleaned = names.map((n) => n.trim()).filter(Boolean);
+  const canGenerate = cleaned.length >= 2;
+
+  return (
+    <div
+      className="fixed inset-0 z-[90] grid place-items-center bg-black/60 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl border border-white/10 p-6 shadow-2xl"
+        style={{ background: "var(--ezd-bg-elev)", color: "var(--ezd-fg)", borderColor: "var(--ezd-hairline)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <Users size={18} className="text-emerald-300" />
+          <h2 className="text-lg font-semibold">Split notes by speaker</h2>
+        </div>
+        <p className="mb-4 text-[13px] leading-relaxed text-white/55">
+          Tell us who's presenting and the setting. We'll write the spoken
+          script and divide it across the team, slide by slide.
+        </p>
+
+        <label className="mb-1.5 block text-[12px] font-medium text-white/70">
+          Setting or occasion
+        </label>
+        <input
+          value={setting}
+          onChange={(e) => setSetting(e.target.value)}
+          placeholder="e.g. class presentation, team standup, conference panel"
+          className="mb-4 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none placeholder:text-white/30 focus:border-emerald-400/40"
+        />
+
+        <label className="mb-1.5 block text-[12px] font-medium text-white/70">
+          Presenters <span className="text-white/40">(in speaking order)</span>
+        </label>
+        <div className="flex flex-col gap-2">
+          {names.map((n, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/8 text-[12px] text-white/60">
+                {i + 1}
+              </span>
+              <input
+                value={n}
+                onChange={(e) => setName(i, e.target.value)}
+                placeholder={`Speaker ${i + 1} name`}
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none placeholder:text-white/30 focus:border-emerald-400/40"
+              />
+              <button
+                onClick={() => removeName(i)}
+                disabled={names.length <= 2}
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 disabled:opacity-30"
+                title="Remove speaker"
+              >
+                <Minus size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={addName}
+          disabled={names.length >= 8}
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-1 text-[13px] text-emerald-300 hover:text-emerald-200 disabled:opacity-40"
+        >
+          <Plus size={14} /> Add speaker
+        </button>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onGenerate(cleaned, setting.trim())}
+            disabled={!canGenerate}
+            className="rounded-xl border border-emerald-400/30 bg-emerald-400/15 px-4 py-2 text-sm text-emerald-100 hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Generate
+          </button>
+        </div>
+        {!canGenerate && (
+          <p className="mt-2 text-right text-[11px] text-white/35">Add at least two names.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------- Speaker notes: view modal ----------------------- */
+
+/** Read-only view of the generated speaker notes for the whole deck, grouped
+ *  by speaker when the notes were split for a group presentation. */
+function NotesViewModal({
+  deck, onClose, onRegenerate,
+}: {
+  deck: Deck;
+  onClose: () => void;
+  onRegenerate: () => void;
+}) {
+  const plainText = (s?: string) =>
+    (s || "").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+
+  return (
+    <div
+      className="fixed inset-0 z-[90] grid place-items-center bg-black/60 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border border-white/10 shadow-2xl"
+        style={{ background: "var(--ezd-bg-elev)", color: "var(--ezd-fg)", borderColor: "var(--ezd-hairline)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-white/8 px-6 py-4">
+          <div className="flex items-center gap-2">
+            <NotebookText size={18} className="text-emerald-300" />
+            <h2 className="text-lg font-semibold">Speaker notes</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onRegenerate}
+              className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[13px] hover:bg-white/10"
+            >
+              Regenerate
+            </button>
+            <button
+              onClick={onClose}
+              className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 hover:bg-white/10"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-y-auto px-6 py-4">
+          {deck.slides.map((s, i) => {
+            const script = plainText(s.notes);
+            return (
+              <div key={i} className="mb-5 last:mb-1">
+                <div className="mb-2 flex items-baseline gap-2">
+                  <span className="grid h-6 min-w-6 place-items-center rounded-md bg-white/8 px-1.5 text-[11px] font-medium text-white/55">
+                    {i + 1}
+                  </span>
+                  <span className="text-[13px] font-semibold text-white/80">
+                    {plainText(s.title) || `Slide ${i + 1}`}
+                  </span>
+                </div>
+                {s.noteSegments && s.noteSegments.length > 0 ? (
+                  <div className="flex flex-col gap-2 pl-8">
+                    {s.noteSegments.map((seg, j) => (
+                      <div key={j}>
+                        <span className="text-[12px] font-semibold text-emerald-300">{seg.speaker}</span>
+                        <p className="mt-0.5 text-[14px] leading-relaxed text-white/75">{seg.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : script ? (
+                  <p className="pl-8 text-[14px] leading-relaxed text-white/75">{script}</p>
+                ) : (
+                  <p className="pl-8 text-[13px] italic text-white/35">No notes for this slide.</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }

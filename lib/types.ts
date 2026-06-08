@@ -142,6 +142,16 @@ export type Slide = {
   templateFonts?: { title?: string; subtitle?: string; kicker?: string; body?: string };
   /** Free-floating text boxes the user adds via the side panel. */
   textBoxes?: TextBox[];
+  /** Speaker notes split by presenter (group presentations). When present,
+   *  `notes` holds the flattened "Speaker: line" version for export, and this
+   *  holds the structured per-speaker breakdown for display. */
+  noteSegments?: SpeakerNote[];
+};
+
+/** One presenter's spoken portion of a slide's speaker notes. */
+export type SpeakerNote = {
+  speaker: string;
+  text: string;
 };
 
 /** A user-added, freely positioned text element. Position/size in slide inches. */

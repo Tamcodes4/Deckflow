@@ -854,3 +854,190 @@ Return ONLY the JSON object.`;
     includeReferences,
   };
 }
+
+/* ----------------------------- speaker notes ------------------------------ */
+
+const SPEAKER_NOTES_SYSTEM = `You are a presentation coach writing speaker notes.
+For each slide you are given, write what the presenter should SAY OUT LOUD while
+that slide is on screen. This is a spoken script, not a rewrite of the slide.
+
+Output ONLY valid JSON. No prose, no markdown.
+
+Schema:
+{
+  "notes": [
+    { "index": number, "script": string }
+  ]
+}
+
+RULES:
+- Return exactly one entry per slide, using the slide's "index" from the input.
+- "script" is 2-4 natural spoken sentences (roughly 30-70 words). It should
+  sound like a person talking, not bullet points read aloud.
+- Expand on the slide — add a transition, a bit of context, or an example. Do
+  NOT just restate the title and bullets verbatim.
+- Match the deck's audience and tone. No emojis. No stage directions like
+  "(pause)". No headings. Just the words to speak.
+- Never invent statistics, dates, or sources that aren't implied by the slide.
+- The first slide is the opening: greet/hook the audience. The last slide is
+  the close: wrap up and invite questions if appropriate.`;
+
+const SPEAKER_NOTES_SYSTEM_MULTI = `You are a presentation coach writing speaker notes for a GROUP presentation.
+For each slide, write what the presenters should SAY OUT LOUD, divided among
+the named presenters. This is a spoken script, not a rewrite of the slide.
+
+Output ONLY valid JSON. No prose, no markdown.
+
+Schema:
+{
+  "notes": [
+    {
+      "index": number,
+      "segments": [
+        { "speaker": string, "text": string }
+      ]
+    }
+  ]
+}
+
+RULES:
+- Return exactly one entry per slide, using the slide's "index" from the input.
+- "segments" splits that slide's spoken script between the named presenters.
+  Use the EXACT speaker names provided, spelled the same way.
+- Most slides should be spoken by ONE presenter (one segment) so the handoff
+  isn't frantic. Hand off to the next presenter between slides or on longer
+  slides. Over the whole deck, balance the talking time roughly evenly and
+  give every presenter a fair share.
+- Go through the presenters in the given order across the deck, looping back as
+  needed. Don't make one person do everything.
+- Each segment's "text" is natural spoken sentences (roughly 30-70 words for a
+  full-slide segment). Sound like a person talking, not bullets read aloud.
+- Expand on the slide with a transition, context, or an example. Do NOT just
+  restate the title and bullets verbatim.
+- Match the deck's audience and tone. No emojis, no stage directions, no
+  headings. Just the words to speak.
+- Never invent statistics, dates, or sources not implied by the slide.
+- The first presenter on slide 0 opens with a greeting suited to the setting,
+  then introduces the team if natural. The final slide closes and may invite
+  questions.`;
+
+export type SlideNote = { index: number; script: string; segments?: { speaker: string; text: string }[] };
+
+/**
+ * Generate spoken speaker notes for every slide in a deck. Returns one
+ * script per slide index. Used by /api/speaker-notes — the editor folds
+ * the scripts into each slide's `notes` field, which also flows through to
+ * the PPTX export and the presenter teleprompter.
+ *
+ * When `speakers` is provided (group presentations), each slide's script is
+ * divided across the named presenters and returned as `segments` too.
+ */
+export async function generateSpeakerNotes(opts: {
+  deck: Deck;
+  audience?: string;
+  tone?: string;
+  speakers?: string[];
+  setting?: string;
+}): Promise<SlideNote[]> {
+  const { deck } = opts;
+  const audience = opts.audience || deck.audience || "a general audience";
+  const tone = opts.tone || deck.tone || "clear and professional";
+  const speakers = (opts.speakers || [])
+    .map((s) => (s || "").trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  const multiSpeaker = speakers.length >= 2;
+
+  // Compact, plain-text view of each slide so the model has enough to write a
+  // script without blowing the token budget on a huge deck.
+  const slidesForModel = deck.slides.map((s, i) => {
+    const parts: string[] = [];
+    if (s.title) parts.push(`title: ${stripPlain(s.title)}`);
+    if (s.subtitle) parts.push(`subtitle: ${stripPlain(s.subtitle)}`);
+    if (s.bullets?.length) parts.push(`bullets: ${s.bullets.map(stripPlain).join(" | ")}`);
+    if (s.body) parts.push(`body: ${stripPlain(s.body)}`);
+    if (s.table?.headers?.length) parts.push(`table columns: ${s.table.headers.map(stripPlain).join(", ")}`);
+    if (s.chart?.title) parts.push(`chart: ${stripPlain(s.chart.title)}`);
+    return { index: i, layout: s.layout, content: parts.join("\n") || "(no text)" };
+  });
+
+  const system = multiSpeaker ? SPEAKER_NOTES_SYSTEM_MULTI : SPEAKER_NOTES_SYSTEM;
+  const speakerBlock = multiSpeaker
+    ? `\nPresenters (split each slide's script between these people, in order, balancing the load): ${speakers.join(", ")}.\nSetting / occasion: ${opts.setting?.trim() || "a presentation"}.\nOpen the very first slide with an audience-appropriate greeting for this setting.`
+    : "";
+
+  const completion = await withGroqClient((client) =>
+    client.chat.completions.create({
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      temperature: 0.5,
+      max_tokens: 4000,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: system },
+        {
+          role: "user",
+          content: `Deck title: ${deck.title}
+Audience: ${audience}
+Tone: ${tone}
+Total slides: ${deck.slides.length}${speakerBlock}
+
+Slides:
+${JSON.stringify(slidesForModel, null, 2)}
+
+Write the speaker notes. Return ONLY the JSON.`,
+        },
+      ],
+    }),
+  );
+
+  const raw = completion.choices[0]?.message?.content || "{}";
+  let parsed: any = {};
+  try {
+    parsed = JSON.parse(extractJson(raw));
+  } catch {
+    parsed = {};
+  }
+
+  const list: any[] = Array.isArray(parsed?.notes) ? parsed.notes : [];
+  const byIndex = new Map<number, { script: string; segments?: { speaker: string; text: string }[] }>();
+  for (const n of list) {
+    const idx = Number(n?.index);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= deck.slides.length) continue;
+
+    if (multiSpeaker && Array.isArray(n?.segments)) {
+      const segments = n.segments
+        .map((seg: any) => ({
+          speaker: typeof seg?.speaker === "string" ? seg.speaker.trim().slice(0, 60) : "",
+          text: typeof seg?.text === "string" ? seg.text.trim().slice(0, 600) : "",
+        }))
+        .filter((seg: { speaker: string; text: string }) => seg.speaker && seg.text);
+      if (segments.length) {
+        const script = segments.map((seg: { speaker: string; text: string }) => `${seg.speaker}: ${seg.text}`).join("\n");
+        byIndex.set(idx, { script, segments });
+        continue;
+      }
+    }
+
+    const script = typeof n?.script === "string" ? n.script.trim() : "";
+    if (script) byIndex.set(idx, { script: script.slice(0, 600) });
+  }
+
+  // Emit one entry per slide; keep any existing note as a fallback when the
+  // model skipped a slide so we never blank out work the user already had.
+  return deck.slides.map((s, i) => {
+    const got = byIndex.get(i);
+    if (got) return { index: i, script: got.script, segments: got.segments };
+    return { index: i, script: (s.notes || "").trim() };
+  });
+}
+
+/** Collapse inline HTML / whitespace to a plain spoken-friendly string. */
+function stripPlain(s: string): string {
+  return (s || "")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
