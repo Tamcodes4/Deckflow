@@ -6,7 +6,7 @@ import { PRESET_THEMES } from "@/lib/themes";
 import {
   BarChart3, ChevronDown, ChevronLeft, ChevronRight, Eye, Grid3x3, Image as ImageIcon, LayoutGrid, Link as LinkIcon, List, Loader2, NotebookText, Play, RotateCcw, Smile, Star, Undo2, X,
   Type, Bold, Italic, Underline as UnderlineIcon, Trash2, AlignLeft, AlignCenter, AlignRight, PanelRightOpen,
-  Users, Plus, Minus,
+  Users, Plus, Minus, Languages,
 } from "lucide-react";
 import SlideCanvas, { type CanvasSelection } from "./SlideCanvas";
 import DesignerPanel from "./DesignerPanel";
@@ -49,6 +49,8 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
   const [notesMenuOpen, setNotesMenuOpen] = useState(false);
   const [customNotesOpen, setCustomNotesOpen] = useState(false);
   const [notesViewOpen, setNotesViewOpen] = useState(false);
+  const [translateOpen, setTranslateOpen] = useState(false);
+  const [translating, setTranslating] = useState(false);
   const [patternOpen, setPatternOpen] = useState(false);
   const [iconOpen, setIconOpen] = useState(false);
   // Right "insert" sidebar: collapsed by default, opens to Add text / image.
@@ -321,6 +323,33 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
     }
   };
 
+  // Translate the whole deck in place into a target language. Only text
+  // changes; layout/theme/charts stay put. Returns true on success.
+  const translateDeckTo = async (language: string): Promise<boolean> => {
+    if (translating || !language.trim()) return false;
+    setTranslating(true);
+    try {
+      const token = await getIdToken();
+      const res = await fetch("/api/translate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ deck, targetLanguage: language.trim() }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = (await res.json()) as { deck?: Deck };
+      if (data.deck) setDeck(data.deck);
+      return true;
+    } catch (e) {
+      console.error("[translateDeck] failed:", e);
+      return false;
+    } finally {
+      setTranslating(false);
+    }
+  };
+
   const downloadPptx = async () => {
     const res = await fetch("/api/export", {
       method: "POST",
@@ -426,6 +455,16 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
           deck={deck}
           onClose={() => setNotesViewOpen(false)}
           onRegenerate={() => { setNotesViewOpen(false); setNotesMenuOpen(true); }}
+        />
+      )}
+      {translateOpen && (
+        <TranslateDialog
+          busy={translating}
+          onClose={() => setTranslateOpen(false)}
+          onTranslate={async (lang) => {
+            const ok = await translateDeckTo(lang);
+            if (ok) setTranslateOpen(false);
+          }}
         />
       )}
       {renderForPdf && <HiddenSlidesRenderer ref={hiddenRef} deck={deck} theme={theme} />}
@@ -760,6 +799,8 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
           updateActive({ elementHidden: { ...(deck.slides[active]?.elementHidden || {}), [id]: true } });
           setCanvasSelection(null);
         }}
+        onTranslate={() => setTranslateOpen(true)}
+        translating={translating}
       />
 
       {/* Mandatory one-time review before the first export (free). */}
@@ -1373,6 +1414,7 @@ function InsertSidebar({
   selectedText, onUpdateText, onDeleteText, onClearSelection,
   decoSelection, decoState, onUpdateDeco, onDeleteDeco,
   elementSelection, elementSize, elementText, onUpdateElementSize, onFormatElement, onResetElement, onDeleteElement,
+  onTranslate, translating,
 }: {
   open: boolean;
   onToggle: () => void;
@@ -1395,6 +1437,8 @@ function InsertSidebar({
   onFormatElement: (prop: string, value: string) => void;
   onResetElement: () => void;
   onDeleteElement: () => void;
+  onTranslate: () => void;
+  translating: boolean;
 }) {
   const SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 40, 54, 72];
   const COLORS = ["", theme.fg, theme.accent, "#0F172A", "#FFFFFF", "#22D3EE", "#1D4ED8", "#DC2626", "#F59E0B", "#047857", "#7C3AED"];
@@ -1472,6 +1516,17 @@ function InsertSidebar({
                 <span>
                   <span className="block font-medium">Add image</span>
                   <span className="block text-[11px] text-white/45">Upload a photo or logo</span>
+                </span>
+              </button>
+              <button
+                onClick={onTranslate}
+                disabled={translating}
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-sm text-white/85 transition hover:bg-white/[0.06] disabled:opacity-60"
+              >
+                {translating ? <Loader2 size={16} className="animate-spin" /> : <Languages size={16} />}
+                <span>
+                  <span className="block font-medium">{translating ? "Translating…" : "Translate deck"}</span>
+                  <span className="block text-[11px] text-white/45">Rewrite every slide in another language</span>
                 </span>
               </button>
             </div>
@@ -2135,6 +2190,96 @@ function NotesViewModal({
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------- Translate dialog ---------------------------- */
+
+const COMMON_LANGUAGES = [
+  "Spanish", "French", "German", "Hindi", "Arabic", "Portuguese",
+  "Mandarin Chinese", "Japanese", "Korean", "Russian", "Italian", "Urdu",
+];
+
+/** Pick a target language (preset chips or free text), then translate the
+ *  whole deck in place. Theme-aware so it reads in light and dark. */
+function TranslateDialog({
+  busy, onClose, onTranslate,
+}: {
+  busy: boolean;
+  onClose: () => void;
+  onTranslate: (language: string) => void;
+}) {
+  const [lang, setLang] = useState("");
+
+  return (
+    <div
+      className="fixed inset-0 z-[90] grid place-items-center bg-black/60 p-4 backdrop-blur-sm"
+      onClick={busy ? undefined : onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl border border-white/10 p-6 shadow-2xl"
+        style={{ background: "var(--ezd-bg-elev)", color: "var(--ezd-fg)", borderColor: "var(--ezd-hairline)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <Languages size={18} className="text-cyan-300" />
+          <h2 className="text-lg font-semibold">Translate deck</h2>
+        </div>
+        <p className="mb-4 text-[13px] leading-relaxed text-white/55">
+          Rewrites every slide, including titles, bullets, tables, and speaker
+          notes, in your chosen language. Layout, theme, and charts stay the same.
+        </p>
+
+        <label className="mb-1.5 block text-[12px] font-medium text-white/70">Language</label>
+        <input
+          value={lang}
+          onChange={(e) => setLang(e.target.value)}
+          placeholder="Type a language, e.g. Spanish"
+          disabled={busy}
+          className="mb-3 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none placeholder:text-white/30 focus:border-cyan-400/40 disabled:opacity-60"
+        />
+
+        <div className="mb-5 flex flex-wrap gap-1.5">
+          {COMMON_LANGUAGES.map((l) => (
+            <button
+              key={l}
+              onClick={() => setLang(l)}
+              disabled={busy}
+              className={`rounded-full border px-2.5 py-1 text-[12px] transition disabled:opacity-50 ${
+                lang === l
+                  ? "border-cyan-300/50 bg-cyan-400/15 text-cyan-100"
+                  : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+              }`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            disabled={busy}
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onTranslate(lang)}
+            disabled={busy || !lang.trim()}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-400/30 bg-cyan-400/15 px-4 py-2 text-sm text-cyan-100 hover:bg-cyan-400/25 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <Languages size={14} />}
+            {busy ? "Translating…" : "Translate"}
+          </button>
+        </div>
+        {busy && (
+          <p className="mt-3 text-center text-[11px] text-white/40">
+            This can take a few seconds for a long deck.
+          </p>
+        )}
       </div>
     </div>
   );

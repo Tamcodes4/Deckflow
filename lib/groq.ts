@@ -1041,3 +1041,132 @@ function stripPlain(s: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+/* ------------------------------- translation ------------------------------ */
+
+/**
+ * Translate a whole deck in place. We collect every user-visible string into
+ * a flat list, translate just the strings, then map them back onto a clone of
+ * the deck. This keeps layout, theme, charts, positions, and structure exactly
+ * as-is — only the text changes.
+ */
+export async function translateDeck(opts: {
+  deck: Deck;
+  targetLanguage: string;
+}): Promise<Deck> {
+  const { deck, targetLanguage } = opts;
+  const lang = (targetLanguage || "").trim();
+  if (!lang) return deck;
+
+  // 1. Collect strings with stable indices. setters[] knows how to write each
+  //    translated string back onto the cloned deck.
+  const next: Deck = JSON.parse(JSON.stringify(deck));
+  const items: string[] = [];
+  const setters: ((v: string) => void)[] = [];
+
+  const push = (value: string | undefined | null, set: (v: string) => void) => {
+    if (typeof value === "string" && value.trim()) {
+      items.push(value);
+      setters.push(set);
+    }
+  };
+
+  push(next.title, (v) => { next.title = v; });
+  push(next.subtitle, (v) => { next.subtitle = v; });
+
+  next.slides.forEach((s) => {
+    push(s.title, (v) => { s.title = v; });
+    push(s.subtitle, (v) => { s.subtitle = v; });
+    push(s.kicker, (v) => { s.kicker = v; });
+    push(s.body, (v) => { s.body = v; });
+    if (Array.isArray(s.bullets)) {
+      s.bullets.forEach((b, bi) => push(b, (v) => { s.bullets![bi] = v; }));
+    }
+    if (s.columnLabels) {
+      push(s.columnLabels.left, (v) => { s.columnLabels!.left = v; });
+      push(s.columnLabels.right, (v) => { s.columnLabels!.right = v; });
+    }
+    if (s.table) {
+      s.table.headers.forEach((h, hi) => push(h, (v) => { s.table!.headers[hi] = v; }));
+      s.table.rows.forEach((row, ri) =>
+        row.forEach((c, ci) => push(c, (v) => { s.table!.rows[ri][ci] = v; })),
+      );
+      push(s.table.source, (v) => { s.table!.source = v; });
+    }
+    if (s.chart) {
+      push(s.chart.title, (v) => { s.chart!.title = v; });
+      s.chart.data?.forEach((d, di) => push(d.label, (v) => { s.chart!.data[di].label = v; }));
+    }
+    if (Array.isArray(s.annotations)) {
+      s.annotations.forEach((a, ai) => push(a.text, (v) => { s.annotations![ai].text = v; }));
+    }
+    if (Array.isArray(s.textBoxes)) {
+      s.textBoxes.forEach((t, ti) => push(t.text, (v) => { s.textBoxes![ti].text = v; }));
+    }
+    push(s.notes, (v) => { s.notes = v; });
+    if (Array.isArray(s.noteSegments)) {
+      s.noteSegments.forEach((seg, si) => push(seg.text, (v) => { s.noteSegments![si].text = v; }));
+    }
+  });
+
+  if (items.length === 0) return next;
+
+  // 2. Translate in batches so a huge deck doesn't blow the token budget or
+  //    truncate the JSON response.
+  const BATCH = 60;
+  for (let start = 0; start < items.length; start += BATCH) {
+    const slice = items.slice(start, start + BATCH);
+    const translated = await translateStrings(slice, lang);
+    translated.forEach((t, i) => {
+      const setter = setters[start + i];
+      if (setter && typeof t === "string" && t.trim()) setter(t);
+    });
+  }
+
+  return next;
+}
+
+/** Translate an ordered list of strings, preserving order and count. */
+async function translateStrings(strings: string[], targetLanguage: string): Promise<string[]> {
+  const numbered = strings.map((s, i) => ({ i, text: s }));
+  const system = `You are a professional translator. Translate each string's "text" into ${targetLanguage}.
+Output ONLY JSON: { "items": [ { "i": number, "text": string } ] }.
+Rules:
+- Return every item, same "i", same order, same count.
+- Translate naturally and idiomatically, not word-for-word.
+- Preserve any inline HTML tags (<b>, <i>, <span ...>), numbers, URLs, emails,
+  and proper nouns/brand names. Translate the human-readable text around them.
+- Do NOT add, merge, split, or drop items. Do NOT add commentary.`;
+
+  const completion = await withGroqClient((client) =>
+    client.chat.completions.create({
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      temperature: 0.2,
+      max_tokens: 8000,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: `Translate into ${targetLanguage}:\n${JSON.stringify({ items: numbered })}\n\nReturn ONLY the JSON.` },
+      ],
+    }),
+  );
+
+  const raw = completion.choices[0]?.message?.content || "{}";
+  let parsed: any = {};
+  try {
+    parsed = JSON.parse(extractJson(raw));
+  } catch {
+    return strings; // fall back to originals on parse failure
+  }
+
+  const out = [...strings];
+  const list: any[] = Array.isArray(parsed?.items) ? parsed.items : [];
+  for (const it of list) {
+    const idx = Number(it?.i);
+    const text = typeof it?.text === "string" ? it.text : "";
+    if (Number.isInteger(idx) && idx >= 0 && idx < out.length && text.trim()) {
+      out[idx] = text;
+    }
+  }
+  return out;
+}
