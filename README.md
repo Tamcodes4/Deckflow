@@ -168,6 +168,88 @@ The Groq key is server-only. The Firebase `NEXT_PUBLIC_*` values are client-side
 - `/app` — the generator and editor (requires sign-in)
 - `/privacy`, `/terms`, `/refund`, `/shipping`, `/contact` — legal pages
 
+## API Routes
+
+The application uses a small set of API routes to handle tasks that cannot safely or efficiently run in the browser.
+
+### `/api/generate`
+
+Generates a complete presentation from a user prompt and selected design settings.
+
+**Input**
+
+* Presentation brief
+* Theme selection
+* Font selection
+* Graphic style
+* Density preferences
+
+**External Services**
+
+* Groq API
+
+**Output**
+
+* Fully structured `Deck` object containing slides, layouts, content, and design metadata
+
+---
+
+### `/api/edit-slide`
+
+Applies AI-powered edits to an individual slide without regenerating the entire presentation.
+
+**Input**
+
+* Current slide content
+* User instruction
+* Deck context
+
+**External Services**
+
+* Groq API
+* Iconify API (when icons are requested)
+
+**Output**
+
+* Updated slide content and layout data
+
+---
+
+### `/api/export`
+
+Creates downloadable PowerPoint files from the current deck.
+
+**Input**
+
+* Deck JSON object
+
+**Libraries Used**
+
+* pptxgenjs
+
+**Output**
+
+* `.pptx` presentation file
+
+---
+
+### `/api/icon-search`
+
+Searches the Iconify icon library and returns matching icons.
+
+**Input**
+
+* Search query
+
+**External Services**
+
+* Iconify
+
+**Output**
+
+* Matching icon metadata and identifiers for use inside the editor
+
+
 ## Project structure
 
 ```
