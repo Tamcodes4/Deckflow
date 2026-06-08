@@ -68,6 +68,7 @@ export default function Presenter({
 
   const total = enriched.length;
   const goNext = () => {
+    setJumpBuffer("");
     setActive((i) => {
       if (i >= total - 1) return i;
       setDirection("next");
@@ -75,6 +76,7 @@ export default function Presenter({
     });
   };
   const goPrev = () => {
+    setJumpBuffer("");
     setActive((i) => {
       if (i <= 0) return i;
       setDirection("prev");
@@ -82,6 +84,7 @@ export default function Presenter({
     });
   };
   const goTo = (i: number) => {
+    setJumpBuffer("");
     if (i < 0 || i >= total) return;
     setDirection(i > active ? "next" : "prev");
     setActive(i);
@@ -140,6 +143,7 @@ export default function Presenter({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        setJumpBuffer("");
         e.preventDefault();
         const exit = (document as any).exitFullscreen
           || (document as any).webkitExitFullscreen;
@@ -166,6 +170,8 @@ export default function Presenter({
       if (e.key === "Backspace") {
         if (jumpBuffer) { setJumpBuffer((b) => b.slice(0, -1)); return; }
       }
+
+      if (jumpBuffer) setJumpBuffer("");
 
       switch (e.key) {
         case "ArrowRight":
