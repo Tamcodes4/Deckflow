@@ -186,6 +186,10 @@ export type Deck = {
   graphicAccent?: string;
   /** Selected font preset id (see lib/fonts.ts). Falls back to theme.font. */
   fontId?: string;
+  /** True once the user has generated speaker notes via the "Generate notes"
+   *  feature. Distinguishes them from the short draft notes the deck ships
+   *  with at creation, so the editor shows "Generate notes" vs "Show notes". */
+  speakerNotesGenerated?: boolean;
 };
 
 export type GenerateRequest = {

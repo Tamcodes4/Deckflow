@@ -267,10 +267,7 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
 
   /* ------------------------------- Export -------------------------------- */
 
-  const hasNotes = useMemo(
-    () => deck.slides.some((s) => (s.notes || "").trim().length > 0),
-    [deck.slides],
-  );
+  const hasNotes = !!deck.speakerNotesGenerated;
 
   // Generate spoken speaker notes for every slide via the AI, then fold each
   // script into the matching slide's `notes`. Powers the presenter
@@ -307,6 +304,7 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
       }
       setDeck({
         ...deck,
+        speakerNotesGenerated: true,
         slides: deck.slides.map((s, i) => {
           const got = byIndex.get(i);
           if (!got || !got.script) return s;
@@ -534,13 +532,6 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
           />
           {viewMode === "slides" && (
             <>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
-            title="Add an image to this slide"
-          >
-            <ImageIcon size={14} /> Add image
-          </button>
           <button
             onClick={undo}
             disabled={!canUndo}
