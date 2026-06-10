@@ -390,11 +390,25 @@ function cleanRefs(arr: any): Reference[] {
     .slice(0, 12);
 }
 
+/** Drop exact duplicate bullets (case/whitespace-insensitive), keeping the
+ *  first occurrence and original order. The model occasionally repeats a
+ *  point near-verbatim; removing exact dupes never loses unique content. */
+function dedupeBullets(bullets: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const b of bullets) {
+    const key = b.toLowerCase().replace(/\s+/g, " ").replace(/[.,;:!?]+$/g, "").trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(b);
+  }
+  return out;
+}
+
 /** Map one raw model slide object to a clean, validated Slide. Shared by
  *  the prompt path and the import-from-content path so both apply the same
  *  layout validation, variant whitelisting, and text cleaning. */
-function mapRawSlide(s: any, i: number, total: number): Slide {
-  const rawLayout = s.layout;
+function mapRawSlide(s: any, i: number, total: number): Slide {  const rawLayout = s.layout;
   const layout: SlideLayout = VALID_LAYOUTS.includes(rawLayout)
     ? rawLayout
     : i === 0 ? "title-hero"
@@ -405,7 +419,7 @@ function mapRawSlide(s: any, i: number, total: number): Slide {
     layout: layout === "references" ? ("bullets" as SlideLayout) : layout,
     title: clean(s.title),
     subtitle: s.subtitle ? clean(s.subtitle) : undefined,
-    bullets: Array.isArray(s.bullets) ? s.bullets.map(clean).filter(Boolean) : [],
+    bullets: Array.isArray(s.bullets) ? dedupeBullets(s.bullets.map(clean).filter(Boolean)) : [],
     body: s.body ? clean(s.body) : undefined,
     table: cleanTable(s.table),
     chart: cleanChartSpec(s.chart),

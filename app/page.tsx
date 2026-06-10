@@ -194,7 +194,7 @@ export default function LandingPage() {
             <p className="mx-auto mt-6 max-w-md text-[15px] leading-relaxed text-white/60 lg:mx-0">
               EZdeck turns a few sentences into a working presentation you
               can edit slide by slide and export to PowerPoint or PDF. No
-              templates to wrestle with, no subscription.
+              templates to wrestle with, and a free plan to start.
             </p>
           </div>
 
@@ -261,7 +261,7 @@ export default function LandingPage() {
           <FeatureBlock
             icon={<Download size={14} />}
             title="Export, no lock-in"
-            body="A real .pptx that opens in PowerPoint, Keynote, or Google Slides. A high-res .pdf if you'd rather lock it. Free to download. No subscriptions."
+            body="A real .pptx that opens in PowerPoint, Keynote, or Google Slides. A high-res .pdf if you'd rather lock it. Yours to keep, no lock-in."
           />
         </div>
       </section>

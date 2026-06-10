@@ -131,6 +131,7 @@ async function renderTitleHero(
   if (variant === "big-initial") return renderTitleBigInitial(pptx, deck, slide, theme);
   if (variant === "numbered")    return renderTitleNumbered(pptx, deck, slide, theme);
   if (variant === "underlined")  return renderTitleUnderlined(pptx, deck, slide, theme);
+  if (variant === "editorial-serif") return renderTitleEditorial(pptx, deck, slide, theme);
   return renderTitleCentered(pptx, deck, slide, theme);
 }
 
@@ -337,6 +338,59 @@ async function renderTitleUnderlined(
       color: hex(theme.muted), fontFace: fontFor(theme, slide),
     });
   }
+  if (slide.notes) s.addNotes(slide.notes);
+  return s;
+}
+
+async function renderTitleEditorial(
+  pptx: PptxGenJS, deck: Deck, slide: Slide, theme: Theme,
+): Promise<PptxGenJS.Slide> {
+  const s = pptx.addSlide();
+  s.background = { color: hex(theme.bg) };
+  applyGraphicBg(s, theme, deck, slide);
+
+  const title = slide.title || deck.title;
+  const sub = slide.subtitle || deck.subtitle || "";
+  const ruleX = W * 0.08;
+  const ruleW = W * 0.84;
+
+  // Top framing rule (matches the editor's editorial masthead look).
+  s.addShape("rect", {
+    x: ruleX, y: H * 0.2, w: ruleW, h: 0.025,
+    fill: { color: hex(theme.fg), transparency: 45 }, line: { type: "none" },
+  } as any);
+
+  if (slide.kicker) {
+    s.addText(slide.kicker.toUpperCase(), {
+      x: ruleX, y: H * 0.24, w: ruleW, h: 0.4,
+      fontSize: 11, bold: true, color: hex(theme.muted),
+      charSpacing: 6, align: "center", fontFace: fontFor(theme, slide),
+    });
+  }
+
+  // Large italic, centered, accent-colored serif title.
+  s.addText(title, {
+    x: ruleX, y: H * 0.34, w: ruleW, h: 1.8,
+    fontSize: titleSize(title, "title-hero", slide), bold: true, italic: true,
+    color: hex(theme.accent), fontFace: "Georgia",
+    align: "center", valign: "top",
+  });
+
+  if (sub) {
+    s.addText(sub, {
+      x: W * 0.16, y: H * 0.62, w: W * 0.68, h: 1.2,
+      fontSize: subtitleSize(sub, "title-hero", slide),
+      color: hex(theme.muted), align: "center", valign: "top",
+      fontFace: fontFor(theme, slide),
+    });
+  }
+
+  // Bottom framing rule.
+  s.addShape("rect", {
+    x: ruleX, y: H * 0.8, w: ruleW, h: 0.025,
+    fill: { color: hex(theme.fg), transparency: 45 }, line: { type: "none" },
+  } as any);
+
   if (slide.notes) s.addNotes(slide.notes);
   return s;
 }

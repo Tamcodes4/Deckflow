@@ -1214,9 +1214,8 @@ function ReviewGate({
 
         <div className="px-5 py-5">
           <p className="mb-4 text-[13px] leading-relaxed" style={{ color: "var(--ezd-fg-muted)" }}>
-            EZdeck is completely free. All we ask is a quick, honest review
-            before your first download — the good ones get featured on the
-            homepage.
+            One quick thing before your first download: a short, honest
+            review. The good ones get featured on the homepage.
           </p>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

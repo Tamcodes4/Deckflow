@@ -57,7 +57,7 @@ export const DEFAULT_TITLE =
 export const TITLE_TEMPLATE = "%s | EZdeck — AI PPT Maker";
 
 export const DEFAULT_DESCRIPTION =
-  "Free AI PPT maker. Type a topic and get an editable PowerPoint presentation in seconds — real charts, themes, and one-click PPTX and PDF export. The fastest free online AI presentation generator. No template wrestling, no subscription.";
+  "AI PPT maker with a free plan. Type a topic and get an editable PowerPoint presentation in seconds — real charts, themes, and one-click PPTX and PDF export. The fastest online AI presentation generator. No template wrestling, free to start.";
 
 export const SHORT_DESCRIPTION =
   "Make PowerPoint presentations from text for free with AI. Editable slides in seconds, real PPTX & PDF export.";

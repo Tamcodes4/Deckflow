@@ -307,9 +307,9 @@ function AuthInner() {
 
             <div className="mt-9 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
               <div className="text-[12px] text-white/65">
-                Built and shipped by an indie developer. Completely free —
-                unlimited decks, full .pptx and .pdf export, no subscriptions,
-                no hidden fees.
+                Built and shipped by an indie developer. Start free, no card
+                needed — with affordable Pro plans when you need more decks
+                and features.
               </div>
             </div>
           </div>

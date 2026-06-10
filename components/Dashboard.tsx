@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowRight, Clock, FileText, Gift, Home, Info, LayoutGrid,
+  ArrowRight, Clock, FileText, Home, Info, LayoutGrid,
   Loader2, LogOut, Plus, Search, Sparkles, Trash2, Wand2, X, Zap,
 } from "lucide-react";
 import { type AppUser } from "@/lib/auth";
@@ -383,113 +383,7 @@ function NavItem({
   return <div className={className}>{inner}</div>;
 }
 
-/* --------------------------- Free popup --------------------------- */
-
-/**
- * Eye-catching "EZdeck is now free" announcement shown as a centered modal
- * popup over the dashboard. Close dismisses for the session (it returns on
- * next load); the "Don't show again" checkbox persists the opt-out to
- * localStorage. Intentionally not finalised yet, so the default is to keep
- * reminding people.
- */
-function FreeBanner({
-  onClose, onNeverShow,
-}: { onClose: () => void; onNeverShow: () => void }) {
-  const [never, setNever] = useState(false);
-  const dismiss = () => (never ? onNeverShow() : onClose());
-
-  // Esc to close + lock body scroll while open.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") dismiss(); };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [never]);
-
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-label="EZdeck is now free"
-      onClick={(e) => { if (e.target === e.currentTarget) dismiss(); }}
-    >
-      <div className="fade-in relative w-full max-w-lg overflow-hidden rounded-2xl border border-cyan-300/25 p-[1px] shadow-2xl">
-        {/* Gradient frame */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-90"
-          style={{
-            background:
-              "linear-gradient(120deg, rgba(34,211,238,0.20), rgba(56,189,248,0.06) 35%, transparent 60%, rgba(167,139,250,0.18))",
-          }}
-        />
-        {/* Soft glow blobs */}
-        <div aria-hidden className="pointer-events-none absolute -left-12 -top-16 h-48 w-48 rounded-full bg-cyan-400/20 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-20 right-8 h-44 w-44 rounded-full bg-violet-400/15 blur-3xl" />
-
-        <div className="relative rounded-[15px] p-6 backdrop-blur-md sm:p-8" style={{ background: "var(--ezd-bg-elev)" }}>
-          {/* Corner close */}
-          <button
-            onClick={dismiss}
-            aria-label="Close announcement"
-            className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full transition hover:bg-white/10"
-            style={{ color: "var(--ezd-fg-muted)" }}
-          >
-            <X size={15} />
-          </button>
-
-          <div className="grid h-14 w-14 place-items-center rounded-2xl border border-cyan-300/30 bg-gradient-to-br from-cyan-400/25 to-sky-600/15 text-cyan-200 shadow-[0_0_30px_-6px_rgba(34,211,238,0.65)]">
-            <Gift size={26} />
-          </div>
-
-          <div className="mt-4 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
-              <Sparkles size={10} /> News
-            </span>
-          </div>
-
-          <h2
-            className="mt-2.5 text-[24px] font-semibold tracking-tight sm:text-[28px]"
-            style={{ color: "var(--ezd-fg-strong)", fontFamily: '"Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif', letterSpacing: "-0.02em" }}
-          >
-            EZdeck is now 100% free
-          </h2>
-          <p className="mt-2.5 text-[13.5px] leading-relaxed" style={{ color: "var(--ezd-fg-muted)" }}>
-            No payments, no per-file fees, no catch. Generate, edit, present,
-            and download unlimited <span style={{ color: "var(--ezd-fg-strong)" }}>.pptx</span> and{" "}
-            <span style={{ color: "var(--ezd-fg-strong)" }}>.pdf</span> decks for free. All we ask
-            is one quick review before your first export.
-          </p>
-
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <label className="inline-flex cursor-pointer select-none items-center gap-2 text-[12px] transition hover:opacity-80" style={{ color: "var(--ezd-fg-muted)" }}>
-              <input
-                type="checkbox"
-                checked={never}
-                onChange={(e) => setNever(e.target.checked)}
-                className="h-3.5 w-3.5 rounded border-white/25 bg-transparent accent-cyan-400"
-              />
-              Don&rsquo;t show this again
-            </label>
-            <button
-              onClick={dismiss}
-              className="inline-flex items-center justify-center gap-1.5 rounded-full px-6 py-2.5 text-[13px] font-semibold transition hover:brightness-110"
-              style={{ background: "var(--ezd-button-strong)", color: "var(--ezd-button-strong-fg)" }}
-            >
-              Got it
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+/* ----------------------------- Continue card ----------------------------- */
 
 function ContinueCard({ deck }: { deck: DeckListItem }) {
   return (

@@ -91,11 +91,11 @@ export default function AboutPage() {
             PowerPoint and keep editing in PowerPoint if you want.
           </p>
           <p>
-            No timed exports, no watermarks, no &ldquo;upgrade to remove
-            this.&rdquo; EZdeck is completely free, including unlimited
-            generation, editing, presenting, and full .pptx and .pdf
-            download. All I ask is a quick honest review before your
-            first export.
+            Start free, no card needed: generate, edit, present, and export
+            to .pptx and .pdf. Free decks carry a small &ldquo;Made with
+            EZdeck&rdquo; mark; the paid plans lift the monthly limit, remove
+            it, and add the finishing touches for people who present a lot.
+            All I ask is a quick honest review before your first export.
           </p>
           <p>
             EZdeck is open source. The whole thing is published under my
