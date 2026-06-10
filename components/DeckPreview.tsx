@@ -6,7 +6,7 @@ import { PRESET_THEMES } from "@/lib/themes";
 import {
   BarChart3, ChevronDown, ChevronLeft, ChevronRight, Eye, Grid3x3, Image as ImageIcon, LayoutGrid, Link as LinkIcon, List, Loader2, NotebookText, Play, RotateCcw, Smile, Star, Undo2, X,
   Type, Bold, Italic, Underline as UnderlineIcon, Trash2, AlignLeft, AlignCenter, AlignRight, PanelRightOpen,
-  Users, Plus, Minus, Languages,
+  Users, Plus, Minus, Languages, MessageCircleQuestion, Send,
 } from "lucide-react";
 import SlideCanvas, { type CanvasSelection } from "./SlideCanvas";
 import DesignerPanel from "./DesignerPanel";
@@ -51,6 +51,7 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
   const [notesViewOpen, setNotesViewOpen] = useState(false);
   const [translateOpen, setTranslateOpen] = useState(false);
   const [translating, setTranslating] = useState(false);
+  const [qaOpen, setQaOpen] = useState(false);
   const [patternOpen, setPatternOpen] = useState(false);
   const [iconOpen, setIconOpen] = useState(false);
   // Right "insert" sidebar: collapsed by default, opens to Add text / image.
@@ -465,6 +466,9 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
           }}
         />
       )}
+      {qaOpen && (
+        <QAPrepModal deck={deck} onClose={() => setQaOpen(false)} />
+      )}
       {renderForPdf && <HiddenSlidesRenderer ref={hiddenRef} deck={deck} theme={theme} />}
       <DecorationDrawer
         open={iconOpen}
@@ -792,6 +796,7 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
         }}
         onTranslate={() => setTranslateOpen(true)}
         translating={translating}
+        onQAPrep={() => setQaOpen(true)}
       />
 
       {/* Mandatory one-time review before the first export (free). */}
@@ -1406,6 +1411,7 @@ function InsertSidebar({
   decoSelection, decoState, onUpdateDeco, onDeleteDeco,
   elementSelection, elementSize, elementText, onUpdateElementSize, onFormatElement, onResetElement, onDeleteElement,
   onTranslate, translating,
+  onQAPrep,
 }: {
   open: boolean;
   onToggle: () => void;
@@ -1430,6 +1436,7 @@ function InsertSidebar({
   onDeleteElement: () => void;
   onTranslate: () => void;
   translating: boolean;
+  onQAPrep: () => void;
 }) {
   const SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 40, 54, 72];
   const COLORS = ["", theme.fg, theme.accent, "#0F172A", "#FFFFFF", "#22D3EE", "#1D4ED8", "#DC2626", "#F59E0B", "#047857", "#7C3AED"];
@@ -1518,6 +1525,16 @@ function InsertSidebar({
                 <span>
                   <span className="block font-medium">{translating ? "Translating…" : "Translate deck"}</span>
                   <span className="block text-[11px] text-white/45">Rewrite every slide in another language</span>
+                </span>
+              </button>
+              <button
+                onClick={onQAPrep}
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-sm text-white/85 transition hover:bg-white/[0.06]"
+              >
+                <MessageCircleQuestion size={16} />
+                <span>
+                  <span className="block font-medium">Prep for Q&amp;A</span>
+                  <span className="block text-[11px] text-white/45">Likely questions, answers, and ask your own</span>
                 </span>
               </button>
             </div>
@@ -2271,6 +2288,183 @@ function TranslateDialog({
             This can take a few seconds for a long deck.
           </p>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------- Q&A prep -------------------------------- */
+
+type QAItem = { category: string; question: string; answer: string };
+
+/**
+ * Q&A prep: generates likely audience questions with suggested answers, and
+ * lets the user ask their own question and get a deck-grounded answer.
+ * Self-contained — does its own API calls. Theme-aware.
+ */
+function QAPrepModal({ deck, onClose }: { deck: Deck; onClose: () => void }) {
+  const [items, setItems] = useState<QAItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  // Custom-question state.
+  const [question, setQuestion] = useState("");
+  const [asking, setAsking] = useState(false);
+  const [custom, setCustom] = useState<QAItem[]>([]);
+
+  const generate = async () => {
+    if (loading) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getIdToken();
+      const res = await fetch("/api/qa-prep", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ deck, audience: deck.audience, tone: deck.tone }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = (await res.json()) as { items?: QAItem[] };
+      setItems(Array.isArray(data.items) ? data.items : []);
+      setLoaded(true);
+    } catch (e) {
+      console.error("[qaPrep] failed:", e);
+      setError("Could not generate questions. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const ask = async () => {
+    const q = question.trim();
+    if (!q || asking) return;
+    setAsking(true);
+    setError(null);
+    try {
+      const token = await getIdToken();
+      const res = await fetch("/api/qa-prep", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ deck, question: q, audience: deck.audience, tone: deck.tone }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = (await res.json()) as { answer?: string };
+      const answer = (data.answer || "").trim();
+      if (answer) {
+        setCustom((c) => [{ category: "Your question", question: q, answer }, ...c]);
+        setQuestion("");
+      } else {
+        setError("No answer came back. Try rephrasing.");
+      }
+    } catch (e) {
+      console.error("[qaPrep ask] failed:", e);
+      setError("Could not answer that question. Try again.");
+    } finally {
+      setAsking(false);
+    }
+  };
+
+  const all = [...custom, ...items];
+
+  return (
+    <div
+      className="fixed inset-0 z-[90] grid place-items-center bg-black/60 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border border-white/10 shadow-2xl"
+        style={{ background: "var(--ezd-bg-elev)", color: "var(--ezd-fg)", borderColor: "var(--ezd-hairline)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-white/8 px-6 py-4">
+          <div className="flex items-center gap-2">
+            <MessageCircleQuestion size={18} className="text-amber-300" />
+            <h2 className="text-lg font-semibold">Prep for Q&amp;A</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 hover:bg-white/10"
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* Ask your own question */}
+        <div className="border-b border-white/8 px-6 py-4">
+          <label className="mb-1.5 block text-[12px] font-medium text-white/70">Ask your own question</label>
+          <div className="flex items-center gap-2">
+            <input
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") ask(); }}
+              placeholder="e.g. How does this scale to 10k users?"
+              disabled={asking}
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none placeholder:text-white/30 focus:border-amber-400/40 disabled:opacity-60"
+            />
+            <button
+              onClick={ask}
+              disabled={asking || !question.trim()}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-400/30 bg-amber-400/15 px-3 py-2 text-sm text-amber-100 hover:bg-amber-400/25 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {asking ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              Ask
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-y-auto px-6 py-4">
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-2.5 text-[12px] text-red-200">
+              {error}
+            </div>
+          )}
+
+          {!loaded && !loading && all.length === 0 && (
+            <div className="py-6 text-center">
+              <p className="mb-4 text-[13px] leading-relaxed text-white/55">
+                Generate the toughest questions an audience or reviewer is likely
+                to ask, each with a suggested answer grounded in your deck.
+              </p>
+              <button
+                onClick={generate}
+                className="inline-flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/15 px-4 py-2 text-sm text-amber-100 hover:bg-amber-400/25"
+              >
+                <MessageCircleQuestion size={15} /> Generate likely questions
+              </button>
+            </div>
+          )}
+
+          {loading && (
+            <div className="flex items-center justify-center gap-2 py-10 text-white/55">
+              <Loader2 size={16} className="animate-spin" /> Thinking through the tough ones…
+            </div>
+          )}
+
+          {all.map((it, i) => (
+            <div key={i} className="mb-4 rounded-xl border border-white/10 bg-white/[0.03] p-4 last:mb-0">
+              <div className="mb-1.5 flex items-center gap-2">
+                <span className="rounded-full border border-white/10 bg-white/8 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/55">
+                  {it.category}
+                </span>
+              </div>
+              <p className="text-[14px] font-semibold text-white/90">{it.question}</p>
+              <p className="mt-1.5 text-[13.5px] leading-relaxed text-white/65">{it.answer}</p>
+            </div>
+          ))}
+
+          {loaded && items.length > 0 && (
+            <div className="mt-2 flex justify-center">
+              <button
+                onClick={generate}
+                disabled={loading}
+                className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[13px] hover:bg-white/10 disabled:opacity-60"
+              >
+                Regenerate questions
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

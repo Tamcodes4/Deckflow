@@ -1170,3 +1170,142 @@ Rules:
   }
   return out;
 }
+
+/* -------------------------------- Q&A prep -------------------------------- */
+
+export type QAItem = { category: string; question: string; answer: string };
+
+const QA_SYSTEM = `You are a presentation coach preparing the speaker for audience questions.
+Read the deck and produce the toughest, most likely questions an audience or
+reviewer would ask, each with a strong suggested answer the speaker can give.
+
+Output ONLY valid JSON. No prose, no markdown.
+
+Schema:
+{
+  "items": [
+    { "category": string, "question": string, "answer": string }
+  ]
+}
+
+RULES:
+- Produce 6-10 questions. Make them genuinely challenging, not softballs.
+- "category" is a short tag: one of "Clarifying", "Challenging", "Evidence",
+  "Scope", "Implementation", "Risk", "Cost", "Comparison". Pick what fits.
+- Cover different angles: definitions/clarifications, push-back on claims,
+  requests for data or evidence, edge cases, feasibility, and trade-offs.
+- "answer" is 2-3 sentences the speaker can actually say, grounded in the
+  deck's content. Confident but honest. If the deck lacks data to answer,
+  suggest how to respond gracefully rather than inventing numbers.
+- Match the deck's audience and tone. No emojis, no markdown, no headings.`;
+
+const QA_ANSWER_SYSTEM = `You are a presentation coach. The speaker gives you ONE question an audience
+member might ask about their deck. Write a strong, concise answer the speaker
+can say out loud, grounded in the deck's content.
+
+Output ONLY valid JSON: { "answer": string }.
+
+RULES:
+- 2-4 sentences. Confident, natural, spoken — not an essay.
+- Ground it in the deck. If the deck doesn't contain the needed facts, say how
+  to answer gracefully instead of inventing statistics, dates, or sources.
+- Match the deck's audience and tone. No emojis, no markdown, no headings.`;
+
+/** Compact plain-text view of a deck for Q&A prompts. */
+function deckDigest(deck: Deck): string {
+  const lines: string[] = [`Deck: ${stripPlain(deck.title)}`];
+  if (deck.subtitle) lines.push(`Subtitle: ${stripPlain(deck.subtitle)}`);
+  deck.slides.forEach((s, i) => {
+    const parts: string[] = [];
+    if (s.title) parts.push(stripPlain(s.title));
+    if (s.subtitle) parts.push(stripPlain(s.subtitle));
+    if (s.bullets?.length) parts.push(s.bullets.map(stripPlain).join("; "));
+    if (s.body) parts.push(stripPlain(s.body));
+    if (s.table?.headers?.length) parts.push(`table: ${s.table.headers.map(stripPlain).join(", ")}`);
+    if (s.chart?.title) parts.push(`chart: ${stripPlain(s.chart.title)}`);
+    lines.push(`${i + 1}. ${parts.join(" — ") || "(no text)"}`);
+  });
+  return lines.join("\n").slice(0, 6000);
+}
+
+/** Generate a set of likely audience questions with suggested answers. */
+export async function generateQAPrep(opts: {
+  deck: Deck;
+  audience?: string;
+  tone?: string;
+}): Promise<QAItem[]> {
+  const { deck } = opts;
+  const audience = opts.audience || deck.audience || "a general audience";
+  const tone = opts.tone || deck.tone || "clear and professional";
+
+  const completion = await withGroqClient((client) =>
+    client.chat.completions.create({
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      temperature: 0.55,
+      max_tokens: 3500,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: QA_SYSTEM },
+        {
+          role: "user",
+          content: `Audience: ${audience}\nTone: ${tone}\n\n${deckDigest(deck)}\n\nGenerate the Q&A prep. Return ONLY the JSON.`,
+        },
+      ],
+    }),
+  );
+
+  const raw = completion.choices[0]?.message?.content || "{}";
+  let parsed: any = {};
+  try {
+    parsed = JSON.parse(extractJson(raw));
+  } catch {
+    parsed = {};
+  }
+  const list: any[] = Array.isArray(parsed?.items) ? parsed.items : [];
+  return list
+    .map((it) => ({
+      category: typeof it?.category === "string" ? it.category.trim().slice(0, 24) : "Question",
+      question: typeof it?.question === "string" ? it.question.trim().slice(0, 300) : "",
+      answer: typeof it?.answer === "string" ? it.answer.trim().slice(0, 800) : "",
+    }))
+    .filter((it) => it.question && it.answer)
+    .slice(0, 12);
+}
+
+/** Answer a single user-supplied question about the deck. */
+export async function answerDeckQuestion(opts: {
+  deck: Deck;
+  question: string;
+  audience?: string;
+  tone?: string;
+}): Promise<string> {
+  const { deck } = opts;
+  const question = (opts.question || "").trim().slice(0, 400);
+  if (!question) return "";
+  const audience = opts.audience || deck.audience || "a general audience";
+  const tone = opts.tone || deck.tone || "clear and professional";
+
+  const completion = await withGroqClient((client) =>
+    client.chat.completions.create({
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      temperature: 0.5,
+      max_tokens: 800,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: QA_ANSWER_SYSTEM },
+        {
+          role: "user",
+          content: `Audience: ${audience}\nTone: ${tone}\n\n${deckDigest(deck)}\n\nQuestion: "${question}"\n\nReturn ONLY the JSON.`,
+        },
+      ],
+    }),
+  );
+
+  const raw = completion.choices[0]?.message?.content || "{}";
+  try {
+    const parsed = JSON.parse(extractJson(raw));
+    return typeof parsed?.answer === "string" ? parsed.answer.trim().slice(0, 800) : "";
+  } catch {
+    return "";
+  }
+}
