@@ -164,10 +164,11 @@ useEffect(() => {
       {confirmId && (
         <div
           className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          aria-hidden="true"
+          onClick={closeConfirm}
         >
           <div
             ref={modalRef}
+            onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-modal-title"
