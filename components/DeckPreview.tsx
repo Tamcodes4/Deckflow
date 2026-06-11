@@ -15,9 +15,10 @@ import DeckChat from "./DeckChat";
 import SlideRail from "./SlideRail";
 import OutlineEditor from "./OutlineEditor";
 import HiddenSlidesRenderer, { type HiddenSlidesHandle } from "./HiddenSlidesRenderer";
+import HiddenHandoutRenderer, { type HiddenHandoutHandle } from "./HiddenHandoutRenderer";
 import ExportButton from "./ExportButton";
 import DecorationDrawer from "./DecorationDrawer";
-import { exportSlidesToPdf } from "@/lib/pdfExport";
+import { exportSlidesToPdf, exportHandoutToPdf } from "@/lib/pdfExport";
 import { trackEvent } from "@/lib/stats";
 import type { ExportFormat } from "./ExportFormatPicker";
 import { getDecoration } from "@/lib/decorations";
@@ -83,6 +84,7 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
   const [canvasSelection, setCanvasSelection] = useState<CanvasSelection>(null);
   const [renderForPdf, setRenderForPdf] = useState(false);
+  const [renderForHandout, setRenderForHandout] = useState(false);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [shareOpen, setShareOpen] = useState(false);
@@ -152,6 +154,7 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
   }, []);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hiddenRef = useRef<HiddenSlidesHandle>(null);
+  const handoutRef = useRef<HiddenHandoutHandle>(null);
 
   // Debounced cloud-save: any change to deck or theme triggers a save
   // 1s after the last edit, so we don't slam Firebase on every keystroke.
@@ -399,10 +402,27 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
     }
   };
 
+  const downloadHandout = async () => {
+    setRenderForHandout(true);
+    await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    try {
+      const nodes = handoutRef.current?.getNodes() ?? [];
+      if (nodes.length === 0) throw new Error("Could not render handout.");
+      await exportHandoutToPdf(nodes, `${slugify(deck.title)}-handout.pdf`);
+    } finally {
+      setRenderForHandout(false);
+    }
+  };
+
   const onExport = async (format: ExportFormat) => {
-    // Exports are free, but we ask for a one-time review before the first
-    // export of this session. Once submitted (or already given), exports
-    // go straight through.
+    // The notes handout is a Pro feature — gate it before anything else.
+    if (format === "handout" && !planHasFeature(plan, "handout")) {
+      setUpgradeReason("The notes handout PDF is a Pro feature. Upgrade to export slides with speaker notes.");
+      setUpgradeOpen(true);
+      return;
+    }
+    // We ask for a one-time review before the first export of this session.
+    // Once submitted (or already given), exports go straight through.
     if (!reviewGiven) {
       setPendingFormat(format);
       setReviewOpen(true);
@@ -415,6 +435,7 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
     setDownloading(true);
     try {
       if (format === "pptx") await downloadPptx();
+      else if (format === "handout") await downloadHandout();
       else await downloadPdf();
       trackEvent({
         kind: "deck_generated",
@@ -504,6 +525,7 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
         />
       )}
       {renderForPdf && <HiddenSlidesRenderer ref={hiddenRef} deck={deck} theme={theme} watermark={planShowsWatermark(plan)} />}
+      {renderForHandout && <HiddenHandoutRenderer ref={handoutRef} deck={deck} theme={theme} />}
       <DecorationDrawer
         open={iconOpen}
         theme={theme}
@@ -652,7 +674,7 @@ export default function DeckPreview({ deck, setDeck, theme, setTheme, onRestart,
           >
             <RotateCcw size={14} /> Start over
           </button>
-          <ExportButton onExport={onExport} busy={downloading} />
+          <ExportButton onExport={onExport} busy={downloading} handoutLocked={!planHasFeature(plan, "handout")} />
         </div>
       </div>
 

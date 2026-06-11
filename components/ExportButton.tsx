@@ -1,14 +1,15 @@
 "use client";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Download, FileText, Presentation } from "lucide-react";
+import { Download, FileText, Presentation, NotebookText, Lock } from "lucide-react";
 import type { ExportFormat } from "./ExportFormatPicker";
 
 export default function ExportButton({
-  onExport, busy,
+  onExport, busy, handoutLocked = false,
 }: {
   onExport: (format: ExportFormat) => void | Promise<void>;
   busy?: boolean;
+  handoutLocked?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -82,6 +83,10 @@ export default function ExportButton({
           <Row icon={<FileText size={14} className="text-white/70" />} label=".pdf"
                sub="Locked layout for sharing"
                onClick={() => pick("pdf")} />
+          <Row icon={<NotebookText size={14} className="text-white/70" />} label="Notes handout"
+               sub="Slides with speaker notes (PDF)"
+               trailing={handoutLocked ? <Lock size={12} className="text-white/40" /> : undefined}
+               onClick={() => pick("handout")} />
         </div>,
         document.body,
       )}
@@ -90,18 +95,19 @@ export default function ExportButton({
 }
 
 function Row({
-  icon, label, sub, onClick,
-}: { icon: React.ReactNode; label: string; sub: string; onClick: () => void }) {
+  icon, label, sub, onClick, trailing,
+}: { icon: React.ReactNode; label: string; sub: string; onClick: () => void; trailing?: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
       className="flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-white/10"
     >
       <span className="mt-0.5">{icon}</span>
-      <span>
+      <span className="flex-1">
         <span className="block text-white">{label}</span>
         <span className="block text-[11px] text-white/50">{sub}</span>
       </span>
+      {trailing && <span className="mt-0.5">{trailing}</span>}
     </button>
   );
 }

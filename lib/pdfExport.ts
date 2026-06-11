@@ -78,3 +78,44 @@ export async function exportSlidesToPdf(
 
   pdf.save(filename);
 }
+
+/**
+ * Capture a list of handout "page" nodes (each a US-Letter portrait page
+ * containing a slide thumbnail plus its speaker notes) into a portrait PDF.
+ * Pages are authored at 816x1056 px (8.5x11in @ 96dpi).
+ */
+export async function exportHandoutToPdf(
+  nodes: HTMLElement[],
+  filename: string,
+): Promise<void> {
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "in",
+    format: [8.5, 11],
+    compress: true,
+  });
+
+  try { await (document as any).fonts?.ready; } catch { /* ignore */ }
+
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    await waitForImages(node);
+    await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
+    const canvas = await html2canvas(node, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      width: 816,
+      height: 1056,
+      windowWidth: 816,
+      windowHeight: 1056,
+      useCORS: true,
+      logging: false,
+    });
+    const data = canvas.toDataURL("image/jpeg", 0.92);
+    if (i > 0) pdf.addPage([8.5, 11], "portrait");
+    pdf.addImage(data, "JPEG", 0, 0, 8.5, 11, undefined, "FAST");
+  }
+
+  pdf.save(filename);
+}

@@ -21,7 +21,8 @@ export type PlanFeature =
   | "qaPrep"         // Q&A prep
   | "translate"      // one-click deck translation
   | "icons"          // add icons from the editor
-  | "reorder";       // reorder / move slides in the rail
+  | "reorder"        // reorder / move slides in the rail
+  | "handout";       // export a notes-page handout PDF
 
 export type Plan = {
   id: PlanId;
@@ -51,6 +52,7 @@ export const PLANS: Record<PlanId, Plan> = {
       translate: false,
       icons: false,
       reorder: false,
+      handout: false,
     },
     highlights: [
       "3 decks per month",
@@ -71,11 +73,13 @@ export const PLANS: Record<PlanId, Plan> = {
       translate: false,
       icons: true,
       reorder: true,
+      handout: true,
     },
     highlights: [
       "10 decks per month",
       "AI speaker notes + teleprompter",
       "Q&A prep",
+      "Notes handout PDF export",
       "Add icons from the editor",
       "Reorder slides freely",
     ],
@@ -92,6 +96,7 @@ export const PLANS: Record<PlanId, Plan> = {
       translate: true,
       icons: true,
       reorder: true,
+      handout: true,
     },
     highlights: [
       "Unlimited decks",

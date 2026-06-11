@@ -1,7 +1,7 @@
 "use client";
 import { FileText, Presentation } from "lucide-react";
 
-export type ExportFormat = "pptx" | "pdf";
+export type ExportFormat = "pptx" | "pdf" | "handout";
 
 export default function ExportFormatPicker({
   onPick, disabled,
